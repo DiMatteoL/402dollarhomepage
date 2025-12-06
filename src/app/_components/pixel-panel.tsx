@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "~/trpc/react";
 
 interface PixelInfo {
@@ -58,6 +58,17 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 
 	const paintMutation = api.canvas.paintPixel.useMutation();
 	const utils = api.useUtils();
+
+	// Global ESC key handler
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				onClose();
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [onClose]);
 
 	const handlePaint = useCallback(async () => {
 		if (!pixel || !ownerName.trim()) {
@@ -133,16 +144,6 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 		onClose,
 	]);
 
-	// Handle escape key
-	const handleKeyDown = useCallback(
-		(e: React.KeyboardEvent) => {
-			if (e.key === "Escape") {
-				onClose();
-			}
-		},
-		[onClose],
-	);
-
 	if (!pixel) return null;
 
 	const nextPrice = (0.01 * (pixel.updateCount + 1)).toFixed(2);
@@ -152,7 +153,6 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 			aria-labelledby="pixel-panel-title"
 			aria-modal="true"
 			className="fixed inset-0 z-50 flex items-center justify-center p-4"
-			onKeyDown={handleKeyDown}
 			role="dialog"
 		>
 			{/* Backdrop */}

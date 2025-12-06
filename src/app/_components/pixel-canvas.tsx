@@ -5,10 +5,13 @@ import { subscribeToPixelUpdates } from "~/lib/supabase";
 import { api } from "~/trpc/react";
 
 const CANVAS_SIZE = 1000;
-const INITIAL_ZOOM = 1;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 const ZOOM_SENSITIVITY = 0.001;
+
+// Colors
+const OUT_OF_BOUNDS_COLOR = "#06060a";
+const CANVAS_BG_COLOR = "#0d0d14";
 
 interface PixelData {
 	x: number;
@@ -33,7 +36,8 @@ interface PixelCanvasProps {
 export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const containerRef = useRef<HTMLDivElement>(null);
-	const [zoom, setZoom] = useState(INITIAL_ZOOM);
+	const [zoom, setZoom] = useState<number | null>(null);
+	const [initialZoom, setInitialZoom] = useState<number>(1);
 	const [pan, setPan] = useState({ x: 0, y: 0 });
 	const [isPanning, setIsPanning] = useState(false);
 	const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 });
@@ -45,31 +49,80 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 
 	// Fetch canvas data
 	const { data: pixels, isLoading } = api.canvas.getCanvas.useQuery(undefined, {
-		staleTime: 30000, // Cache for 30 seconds
+		staleTime: 30000,
 	});
 
-	// Render canvas - defined first so it can be used in other hooks
+	// Calculate initial zoom to fit canvas height in viewport
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container || zoom !== null) return;
+
+		const rect = container.getBoundingClientRect();
+		const fitZoom = rect.height / CANVAS_SIZE;
+		setInitialZoom(fitZoom);
+		setZoom(fitZoom);
+	}, [zoom]);
+
+	// Clamp pan to keep canvas center on screen
+	const clampPan = useCallback(
+		(newPan: { x: number; y: number }, currentZoom: number) => {
+			const container = containerRef.current;
+			if (!container) return newPan;
+
+			const canvasPixelSize = CANVAS_SIZE * currentZoom;
+
+			// Max pan is half the canvas size (so center stays on screen)
+			const maxPanX = canvasPixelSize / 2;
+			const maxPanY = canvasPixelSize / 2;
+
+			return {
+				x: Math.max(-maxPanX, Math.min(maxPanX, newPan.x)),
+				y: Math.max(-maxPanY, Math.min(maxPanY, newPan.y)),
+			};
+		},
+		[],
+	);
+
+	// Render canvas
 	const renderCanvas = useCallback(() => {
 		const canvas = canvasRef.current;
 		const ctx = canvas?.getContext("2d");
-		if (!canvas || !ctx) return;
+		if (!canvas || !ctx || zoom === null) return;
 
 		const dpr = window.devicePixelRatio || 1;
 		const rect = canvas.getBoundingClientRect();
 
-		// Set canvas size accounting for device pixel ratio
 		canvas.width = rect.width * dpr;
 		canvas.height = rect.height * dpr;
 		ctx.scale(dpr, dpr);
 
-		// Clear canvas
-		ctx.fillStyle = "#0a0a0f";
+		// Fill entire canvas with out-of-bounds color
+		ctx.fillStyle = OUT_OF_BOUNDS_COLOR;
 		ctx.fillRect(0, 0, rect.width, rect.height);
 
-		// Calculate visible area
+		// Calculate canvas position
 		const pixelSize = zoom;
 		const offsetX = pan.x + rect.width / 2 - (CANVAS_SIZE * pixelSize) / 2;
 		const offsetY = pan.y + rect.height / 2 - (CANVAS_SIZE * pixelSize) / 2;
+
+		// Draw the 1000x1000 canvas area with different background
+		ctx.fillStyle = CANVAS_BG_COLOR;
+		ctx.fillRect(
+			offsetX,
+			offsetY,
+			CANVAS_SIZE * pixelSize,
+			CANVAS_SIZE * pixelSize,
+		);
+
+		// Draw subtle border around canvas bounds
+		ctx.strokeStyle = "rgba(0, 255, 255, 0.15)";
+		ctx.lineWidth = 1;
+		ctx.strokeRect(
+			offsetX,
+			offsetY,
+			CANVAS_SIZE * pixelSize,
+			CANVAS_SIZE * pixelSize,
+		);
 
 		// Calculate visible pixel range
 		const startX = Math.max(0, Math.floor(-offsetX / pixelSize));
@@ -83,7 +136,7 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 			Math.ceil((rect.height - offsetY) / pixelSize),
 		);
 
-		// Draw grid background for unpurchased pixels (only if zoomed in enough)
+		// Draw grid background (only if zoomed in enough)
 		if (pixelSize >= 2) {
 			ctx.strokeStyle = "rgba(42, 42, 58, 0.3)";
 			ctx.lineWidth = 0.5;
@@ -91,16 +144,28 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 			for (let x = startX; x <= endX; x++) {
 				const screenX = x * pixelSize + offsetX;
 				ctx.beginPath();
-				ctx.moveTo(screenX, Math.max(0, startY * pixelSize + offsetY));
-				ctx.lineTo(screenX, Math.min(rect.height, endY * pixelSize + offsetY));
+				ctx.moveTo(screenX, Math.max(offsetY, startY * pixelSize + offsetY));
+				ctx.lineTo(
+					screenX,
+					Math.min(
+						offsetY + CANVAS_SIZE * pixelSize,
+						endY * pixelSize + offsetY,
+					),
+				);
 				ctx.stroke();
 			}
 
 			for (let y = startY; y <= endY; y++) {
 				const screenY = y * pixelSize + offsetY;
 				ctx.beginPath();
-				ctx.moveTo(Math.max(0, startX * pixelSize + offsetX), screenY);
-				ctx.lineTo(Math.min(rect.width, endX * pixelSize + offsetX), screenY);
+				ctx.moveTo(Math.max(offsetX, startX * pixelSize + offsetX), screenY);
+				ctx.lineTo(
+					Math.min(
+						offsetX + CANVAS_SIZE * pixelSize,
+						endX * pixelSize + offsetX,
+					),
+					screenY,
+				);
 				ctx.stroke();
 			}
 		}
@@ -134,7 +199,6 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 				pixelSize,
 			);
 
-			// Draw glow effect
 			ctx.shadowColor = "#00ffff";
 			ctx.shadowBlur = 10;
 			ctx.strokeRect(
@@ -147,7 +211,7 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 		}
 	}, [zoom, pan, hoveredPixel]);
 
-	// Store pixel data in ref for efficient access
+	// Store pixel data in ref
 	useEffect(() => {
 		if (pixels) {
 			pixelDataRef.current.clear();
@@ -171,7 +235,6 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 			pixelDataRef.current.set(`${pixel.x}-${pixel.y}`, pixel);
 			renderCanvas();
 		});
-
 		return unsubscribe;
 	}, [renderCanvas]);
 
@@ -180,9 +243,17 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 		renderCanvas();
 	}, [renderCanvas]);
 
-	// Handle resize
+	// Handle resize - recalculate initial zoom
 	useEffect(() => {
-		const handleResize = () => renderCanvas();
+		const handleResize = () => {
+			const container = containerRef.current;
+			if (container) {
+				const rect = container.getBoundingClientRect();
+				const fitZoom = rect.height / CANVAS_SIZE;
+				setInitialZoom(fitZoom);
+			}
+			renderCanvas();
+		};
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
 	}, [renderCanvas]);
@@ -191,7 +262,7 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 	const screenToPixel = useCallback(
 		(screenX: number, screenY: number) => {
 			const canvas = canvasRef.current;
-			if (!canvas) return null;
+			if (!canvas || zoom === null) return null;
 
 			const rect = canvas.getBoundingClientRect();
 			const pixelSize = zoom;
@@ -210,18 +281,23 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 	);
 
 	// Handle mouse wheel zoom
-	const handleWheel = useCallback((e: React.WheelEvent) => {
-		e.preventDefault();
-		const delta = -e.deltaY * ZOOM_SENSITIVITY;
-		setZoom((prev) =>
-			Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * (1 + delta))),
-		);
-	}, []);
+	const handleWheel = useCallback(
+		(e: React.WheelEvent) => {
+			e.preventDefault();
+			const delta = -e.deltaY * ZOOM_SENSITIVITY;
+			setZoom((prev) =>
+				Math.min(
+					MAX_ZOOM,
+					Math.max(MIN_ZOOM, (prev ?? initialZoom) * (1 + delta)),
+				),
+			);
+		},
+		[initialZoom],
+	);
 
 	// Handle mouse down (start pan)
 	const handleMouseDown = useCallback((e: React.MouseEvent) => {
 		if (e.button === 1 || e.button === 2 || e.shiftKey) {
-			// Middle click, right click, or shift+click to pan
 			e.preventDefault();
 			setIsPanning(true);
 			setLastPanPoint({ x: e.clientX, y: e.clientY });
@@ -234,14 +310,17 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 			if (isPanning) {
 				const dx = e.clientX - lastPanPoint.x;
 				const dy = e.clientY - lastPanPoint.y;
-				setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+				const currentZoom = zoom ?? initialZoom;
+				setPan((prev) =>
+					clampPan({ x: prev.x + dx, y: prev.y + dy }, currentZoom),
+				);
 				setLastPanPoint({ x: e.clientX, y: e.clientY });
 			} else {
 				const pixel = screenToPixel(e.clientX, e.clientY);
 				setHoveredPixel(pixel);
 			}
 		},
-		[isPanning, lastPanPoint, screenToPixel],
+		[isPanning, lastPanPoint, screenToPixel, zoom, initialZoom, clampPan],
 	);
 
 	// Handle mouse up
@@ -288,14 +367,15 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 				const dx = touch.clientX - lastPanPoint.x;
 				const dy = touch.clientY - lastPanPoint.y;
 
-				// Only pan if movement is significant (prevent accidental pans)
 				if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
 					setIsPanning(true);
-					setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+					const currentZoom = zoom ?? initialZoom;
+					setPan((prev) =>
+						clampPan({ x: prev.x + dx, y: prev.y + dy }, currentZoom),
+					);
 					setLastPanPoint({ x: touch.clientX, y: touch.clientY });
 				}
 			} else if (e.touches.length === 2) {
-				// Pinch zoom
 				const touch1 = e.touches[0];
 				const touch2 = e.touches[1];
 				if (!touch1 || !touch2) return;
@@ -304,20 +384,22 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 					touch2.clientY - touch1.clientY,
 				);
 
-				// Store initial distance for pinch calculation
 				const container = containerRef.current;
 				if (container) {
 					const prevDistance =
 						Number(container.dataset.pinchDistance) || distance;
 					const scale = distance / prevDistance;
 					setZoom((prev) =>
-						Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prev * scale)),
+						Math.min(
+							MAX_ZOOM,
+							Math.max(MIN_ZOOM, (prev ?? initialZoom) * scale),
+						),
 					);
 					container.dataset.pinchDistance = String(distance);
 				}
 			}
 		},
-		[lastPanPoint],
+		[lastPanPoint, initialZoom, zoom, clampPan],
 	);
 
 	const handleTouchEnd = useCallback(
@@ -349,11 +431,13 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 		[isPanning, screenToPixel, onPixelSelect],
 	);
 
-	// Reset view
+	// Reset view to fit canvas
 	const handleResetView = useCallback(() => {
-		setZoom(INITIAL_ZOOM);
+		setZoom(initialZoom);
 		setPan({ x: 0, y: 0 });
-	}, []);
+	}, [initialZoom]);
+
+	const currentZoom = zoom ?? initialZoom;
 
 	return (
 		<div className="relative h-full w-full" ref={containerRef}>
@@ -361,7 +445,9 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 			<div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
 				<button
 					className="btn-secondary flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-					onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z * 1.5))}
+					onClick={() =>
+						setZoom((z) => Math.min(MAX_ZOOM, (z ?? initialZoom) * 1.5))
+					}
 					title="Zoom In"
 					type="button"
 				>
@@ -369,7 +455,9 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 				</button>
 				<button
 					className="btn-secondary flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-					onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z / 1.5))}
+					onClick={() =>
+						setZoom((z) => Math.max(MIN_ZOOM, (z ?? initialZoom) / 1.5))
+					}
 					title="Zoom Out"
 					type="button"
 				>
@@ -387,7 +475,7 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 
 			{/* Zoom indicator */}
 			<div className="absolute top-4 right-4 z-10 rounded-lg bg-[var(--color-bg-secondary)] px-3 py-2 font-mono text-[var(--color-text-secondary)] text-sm">
-				{(zoom * 100).toFixed(0)}%
+				{(currentZoom * 100).toFixed(0)}%
 			</div>
 
 			{/* Hovered pixel info */}
