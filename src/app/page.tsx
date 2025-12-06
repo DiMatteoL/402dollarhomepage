@@ -1,53 +1,92 @@
-import Link from "next/link";
+"use client";
 
-import { LatestPost } from "~/app/_components/post";
-import { api, HydrateClient } from "~/trpc/server";
+import { useCallback, useState } from "react";
+import { PixelCanvas } from "./_components/pixel-canvas";
+import { PixelPanel } from "./_components/pixel-panel";
 
-export default async function Home() {
-	const hello = await api.post.hello({ text: "from tRPC" });
+interface SelectedPixel {
+	x: number;
+	y: number;
+	color: string;
+	price: number;
+	owner: string | null;
+	updateCount: number;
+}
 
-	void api.post.getLatest.prefetch();
+export default function HomePage() {
+	const [selectedPixel, setSelectedPixel] = useState<SelectedPixel | null>(
+		null,
+	);
+
+	const handlePixelSelect = useCallback((pixel: SelectedPixel) => {
+		setSelectedPixel(pixel);
+	}, []);
+
+	const handlePaintSuccess = useCallback(() => {
+		// Pixel painted successfully - canvas will update via realtime
+	}, []);
 
 	return (
-		<HydrateClient>
-			<main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-				<div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-					<h1 className="font-extrabold text-5xl tracking-tight sm:text-[5rem]">
-						Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-					</h1>
-					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/usage/first-steps"
-							target="_blank"
-						>
-							<h3 className="font-bold text-2xl">First Steps →</h3>
-							<div className="text-lg">
-								Just the basics - Everything you need to know to set up your
-								database and authentication.
-							</div>
-						</Link>
-						<Link
-							className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-							href="https://create.t3.gg/en/introduction"
-							target="_blank"
-						>
-							<h3 className="font-bold text-2xl">Documentation →</h3>
-							<div className="text-lg">
-								Learn more about Create T3 App, the libraries it uses, and how
-								to deploy it.
-							</div>
-						</Link>
-					</div>
-					<div className="flex flex-col items-center gap-2">
-						<p className="text-2xl text-white">
-							{hello ? hello.greeting : "Loading tRPC query..."}
-						</p>
-					</div>
+		<div className="flex min-h-[calc(100vh-4rem)] flex-col">
+			{/* Header */}
+			<div className="px-4 py-6 text-center">
+				<h1 className="font-bold text-3xl sm:text-4xl lg:text-5xl">
+					<span className="bg-gradient-to-r from-[var(--color-accent-cyan)] via-[var(--color-accent-magenta)] to-[var(--color-accent-yellow)] bg-clip-text text-transparent">
+						402 Dollar
+					</span>{" "}
+					<span className="text-[var(--color-text-primary)]">Homepage</span>
+				</h1>
+				<p className="mt-2 text-[var(--color-text-secondary)]">
+					1,000,000 pixels ×{" "}
+					<span className="text-[var(--color-accent-green)]">$0.01</span> ={" "}
+					<span className="font-bold text-[var(--color-accent-cyan)]">
+						$10,000
+					</span>
+				</p>
+				<p className="mt-1 text-[var(--color-text-muted)] text-sm">
+					Click any pixel to paint. Price increases $0.01 each repaint.
+				</p>
+			</div>
 
-					<LatestPost />
+			{/* Canvas container - takes remaining space */}
+			<div className="flex-1 px-4 pb-4">
+				<div className="mx-auto h-full max-w-5xl">
+					<div className="h-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+						<PixelCanvas onPixelSelect={handlePixelSelect} />
+					</div>
 				</div>
-			</main>
-		</HydrateClient>
+			</div>
+
+			{/* Instructions */}
+			<div className="flex flex-wrap justify-center gap-4 px-4 pb-6 text-[var(--color-text-muted)] text-xs">
+				<span className="flex items-center gap-2">
+					<kbd className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1">
+						Click
+					</kbd>
+					Select pixel
+				</span>
+				<span className="flex items-center gap-2">
+					<kbd className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1">
+						Scroll
+					</kbd>
+					Zoom
+				</span>
+				<span className="flex items-center gap-2">
+					<kbd className="rounded bg-[var(--color-bg-tertiary)] px-2 py-1">
+						Shift + Drag
+					</kbd>
+					Pan
+				</span>
+			</div>
+
+			{/* Pixel panel modal */}
+			{selectedPixel && (
+				<PixelPanel
+					onClose={() => setSelectedPixel(null)}
+					onSuccess={handlePaintSuccess}
+					pixel={selectedPixel}
+				/>
+			)}
+		</div>
 	);
 }
