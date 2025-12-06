@@ -198,8 +198,8 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
         price: result.pixel?.price ?? pixel.price,
         updateCount: result.pixel?.updateCount ?? pixel.updateCount + 1,
       });
-      await utils.canvas.getCanvas.invalidate();
-      setTimeout(onClose, 1500);
+      void utils.canvas.getCanvas.invalidate();
+      onClose();
     } catch (err: unknown) {
       console.error("[x402] Payment error:", err);
       setError(err instanceof Error ? err.message : "Payment failed");
