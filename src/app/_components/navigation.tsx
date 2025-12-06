@@ -9,13 +9,13 @@ export function Navigation() {
 				<Link className="flex items-center gap-3" href="/">
 					<div className="relative">
 						<div className="-inset-1 absolute rounded-lg bg-gradient-to-r from-[var(--color-accent-cyan)] to-[var(--color-accent-magenta)] opacity-30 blur" />
-						<div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-bg-secondary)] font-bold font-mono text-[var(--color-accent-cyan)] text-sm">
-							402
+						<div className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--color-bg-secondary)] font-bold font-mono text-[var(--color-accent-cyan)] text-xs">
+							x402
 						</div>
 					</div>
 					<div className="hidden sm:block">
 						<h1 className="font-bold text-lg tracking-tight">
-							<span className="text-[var(--color-accent-cyan)]">$</span>Dollar
+							Dollar
 							<span className="text-[var(--color-text-muted)]">Homepage</span>
 						</h1>
 						<p className="text-[var(--color-text-muted)] text-xs">
