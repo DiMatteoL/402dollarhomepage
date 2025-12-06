@@ -17,6 +17,7 @@ import {
   QuickColorPicker,
   useHasSuccessfulTransaction,
 } from "./_components/quick-color-picker";
+import { StatusIndicator } from "./_components/status-indicator";
 
 interface SelectedPixel {
   x: number;
@@ -190,17 +191,8 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Auto-painting indicator */}
-      {isAutoPainting && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/95 backdrop-blur-md px-4 py-2 shadow-lg">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
-            <span className="text-sm text-[var(--color-text-secondary)]">
-              Painting...
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Status indicator - shows loader when pending, user count otherwise */}
+      <StatusIndicator isPending={isAutoPainting} />
 
       {/* Quick color picker overlay - hidden when modal is open */}
       {!selectedPixel && (
