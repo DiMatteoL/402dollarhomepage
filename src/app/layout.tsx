@@ -3,6 +3,7 @@ import "~/styles/globals.css";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { Privy } from "~/lib/privy";
 import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "./_components/navigation";
 import { PreventBrowserZoom } from "./_components/prevent-browser-zoom";
@@ -42,10 +43,12 @@ export default function RootLayout({
 		>
 			<body className="min-h-screen overflow-hidden font-sans antialiased">
 				<PreventBrowserZoom />
-				<TRPCReactProvider>
-					<Navigation />
-					<main>{children}</main>
-				</TRPCReactProvider>
+				<Privy>
+					<TRPCReactProvider>
+						<Navigation />
+						<main>{children}</main>
+					</TRPCReactProvider>
+				</Privy>
 			</body>
 		</html>
 	);

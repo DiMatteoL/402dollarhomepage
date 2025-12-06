@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "~/trpc/react";
 
@@ -49,8 +50,11 @@ function simulatePayment(): Promise<void> {
 }
 
 export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
-	const [selectedColor, setSelectedColor] = useState(pixel?.color ?? "#00ffff");
-	const [ownerName, setOwnerName] = useState("");
+	const { ready, authenticated, user, login, logout } = usePrivy();
+
+	const [selectedColor, setSelectedColor] = useState(
+		pixel?.owner ? pixel.color : "#1d4ed8",
+	);
 	const [paymentState, setPaymentState] = useState<
 		"idle" | "requesting" | "paying" | "confirming" | "success" | "error"
 	>("idle");
@@ -58,6 +62,9 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 
 	const paintMutation = api.canvas.paintPixel.useMutation();
 	const utils = api.useUtils();
+
+	// Get wallet address from Privy user
+	const walletAddress = user?.wallet?.address ?? null;
 
 	// Global ESC key handler
 	useEffect(() => {
@@ -71,8 +78,8 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 	}, [onClose]);
 
 	const handlePaint = useCallback(async () => {
-		if (!pixel || !ownerName.trim()) {
-			setError("Please enter your name or wallet address");
+		if (!pixel || !walletAddress) {
+			setError("Please connect your wallet first");
 			return;
 		}
 
@@ -85,7 +92,7 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 				x: pixel.x,
 				y: pixel.y,
 				color: selectedColor,
-				owner: ownerName.trim(),
+				owner: walletAddress,
 			});
 		} catch (err: unknown) {
 			const trpcError = err as { message?: string };
@@ -106,7 +113,7 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 							x: pixel.x,
 							y: pixel.y,
 							color: selectedColor,
-							owner: ownerName.trim(),
+							owner: walletAddress,
 							paymentNonce: paymentDetails.nonce,
 							paymentHash: `payment_${Date.now()}_${Math.random().toString(36).slice(2)}`,
 						});
@@ -117,7 +124,7 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 						onSuccess({
 							...pixel,
 							color: selectedColor,
-							owner: ownerName.trim(),
+							owner: walletAddress,
 							price: result.pixel.price,
 							updateCount: result.pixel.updateCount,
 						});
@@ -137,7 +144,7 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 	}, [
 		pixel,
 		selectedColor,
-		ownerName,
+		walletAddress,
 		paintMutation,
 		utils,
 		onSuccess,
@@ -276,23 +283,37 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 					</div>
 				</div>
 
-				{/* Owner name */}
+				{/* Wallet connection */}
 				<div className="mb-6">
-					<label
-						className="mb-2 block font-medium text-[var(--color-text-secondary)] text-sm"
-						htmlFor="owner-name"
-					>
-						Your Name or Wallet
-					</label>
-					<input
-						className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-4 py-3 focus:border-[var(--color-accent-cyan)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent-cyan)]"
-						disabled={paymentState !== "idle" && paymentState !== "error"}
-						id="owner-name"
-						onChange={(e) => setOwnerName(e.target.value)}
-						placeholder="satoshi.eth or your name"
-						type="text"
-						value={ownerName}
-					/>
+					<span className="mb-2 block font-medium text-[var(--color-text-secondary)] text-sm">
+						Your Wallet
+					</span>
+					{!ready ? (
+						<div className="flex h-12 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
+							<div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
+						</div>
+					) : authenticated && walletAddress ? (
+						<div className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-4 py-3">
+							<span className="font-mono text-sm text-[var(--color-accent-cyan)]">
+								{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+							</span>
+							<button
+								className="text-[var(--color-text-muted)] text-xs hover:text-[var(--color-text-secondary)]"
+								onClick={logout}
+								type="button"
+							>
+								Disconnect
+							</button>
+						</div>
+					) : (
+						<button
+							className="w-full rounded-lg border border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/10 px-4 py-3 font-medium text-[var(--color-accent-cyan)] transition-colors hover:bg-[var(--color-accent-cyan)]/20"
+							onClick={login}
+							type="button"
+						>
+							Connect Wallet
+						</button>
+					)}
 				</div>
 
 				{/* Error message */}
@@ -341,13 +362,18 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 					</button>
 					<button
 						className="btn-primary flex-1"
-						disabled={paymentState !== "idle" && paymentState !== "error"}
+						disabled={
+							!walletAddress ||
+							(paymentState !== "idle" && paymentState !== "error")
+						}
 						onClick={handlePaint}
 						type="button"
 					>
-						{paymentState === "idle" || paymentState === "error"
-							? `Pay $${nextPrice}`
-							: "Processing..."}
+						{!walletAddress
+							? "Connect Wallet First"
+							: paymentState === "idle" || paymentState === "error"
+								? `Pay $${nextPrice}`
+								: "Processing..."}
 					</button>
 				</div>
 
