@@ -13,6 +13,7 @@ import {
 } from "x402/types";
 import { safeBase64Decode } from "x402/shared";
 import { useFacilitator } from "x402/verify";
+import { facilitator as cdpFacilitatorConfig } from "@coinbase/x402";
 
 // Configuration
 const CANVAS_SIZE = 1000;
@@ -25,8 +26,6 @@ const NETWORK = (process.env.X402_NETWORK ??
 const PAY_TO_ADDRESS =
   process.env.X402_PAY_TO_ADDRESS ??
   "0x0000000000000000000000000000000000000000";
-const FACILITATOR_URL = (process.env.X402_FACILITATOR_URL ??
-  "https://x402.org/facilitator") as `${string}://${string}`;
 
 // USDC contract config per network (address + EIP-712 domain info)
 const USDC_CONFIG: Record<string, { address: `0x${string}`; name: string; version: string }> = {
@@ -188,9 +187,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify and settle the payment using the facilitator
+    // Verify and settle the payment using CDP facilitator
     console.log("[x402] === VERIFICATION DEBUG ===");
-    console.log("[x402] Facilitator URL:", FACILITATOR_URL);
+    console.log("[x402] Using CDP Facilitator (mainnet supported)");
     console.log("[x402] Network:", NETWORK);
     console.log("[x402] USDC Asset:", paymentRequirements.asset);
     console.log("[x402] PayTo:", paymentRequirements.payTo);
@@ -199,7 +198,8 @@ export async function POST(request: NextRequest) {
     console.log("[x402] Full payload:", JSON.stringify(paymentPayload, null, 2));
     console.log("[x402] Full requirements:", JSON.stringify(paymentRequirements, null, 2));
 
-    const facilitator = useFacilitator({ url: FACILITATOR_URL });
+    // Create facilitator instance with CDP config (supports mainnet)
+    const facilitator = useFacilitator(cdpFacilitatorConfig);
 
     let verifyResult;
     try {
