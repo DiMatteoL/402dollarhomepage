@@ -7,6 +7,7 @@ import { baseSepolia, base } from "viem/chains";
 import { preparePaymentHeader, signPaymentHeader } from "x402/client";
 import type { PaymentRequirements } from "x402/types";
 import { api } from "~/trpc/react";
+import { FullColorPicker, useRecentColors } from "./color-picker";
 
 interface PixelInfo {
   x: number;
@@ -21,47 +22,40 @@ interface PixelPanelProps {
   pixel: PixelInfo | null;
   onClose: () => void;
   onSuccess: (pixel: PixelInfo) => void;
+  initialColor?: string;
+  onColorChange?: (color: string) => void;
 }
-
-const PRESET_COLORS = [
-  "#ff0000",
-  "#ff4400",
-  "#ff8800",
-  "#ffcc00",
-  "#ffff00",
-  "#88ff00",
-  "#00ff00",
-  "#00ff88",
-  "#00ffff",
-  "#0088ff",
-  "#0000ff",
-  "#4400ff",
-  "#8800ff",
-  "#ff00ff",
-  "#ff0088",
-  "#ffffff",
-  "#cccccc",
-  "#888888",
-  "#444444",
-  "#000000",
-];
 
 type PaymentState = "idle" | "processing" | "success" | "error";
 
 const X402_VERSION = 1;
 const CHAINS = { "base-sepolia": baseSepolia, base } as const;
 
-export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
+export function PixelPanel({ pixel, onClose, onSuccess, initialColor, onColorChange }: PixelPanelProps) {
   const { ready, authenticated, login, logout } = usePrivy();
   const { wallets } = useWallets();
+  const { addRecentColor } = useRecentColors();
 
   const [selectedColor, setSelectedColor] = useState(
-    pixel?.owner ? pixel.color : "#1d4ed8"
+    initialColor ?? (pixel?.owner ? pixel.color : "#1d4ed8")
   );
   const [paymentState, setPaymentState] = useState<PaymentState>("idle");
   const [error, setError] = useState<string | null>(null);
 
   const utils = api.useUtils();
+
+  // Sync with external color changes
+  useEffect(() => {
+    if (initialColor) {
+      setSelectedColor(initialColor);
+    }
+  }, [initialColor]);
+
+  // Notify parent of color changes
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    onColorChange?.(color);
+  };
 
   // Get the first connected wallet
   const activeWallet = wallets[0];
@@ -191,6 +185,8 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
       }
 
       setPaymentState("success");
+      // Add to recent colors on successful paint
+      addRecentColor(selectedColor);
       onSuccess({
         ...pixel,
         color: selectedColor,
@@ -213,6 +209,7 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
     utils,
     onSuccess,
     onClose,
+    addRecentColor,
   ]);
 
   if (!pixel) return null;
@@ -287,51 +284,10 @@ export function PixelPanel({ pixel, onClose, onSuccess }: PixelPanelProps) {
 
         {/* Color picker */}
         <div className="mb-6">
-          <span className="mb-2 block font-medium text-[var(--color-text-secondary)] text-sm">
-            Select Color
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map((color) => (
-              <button
-                aria-label={`Select color ${color}`}
-                className={`color-swatch ${
-                  selectedColor === color ? "selected" : ""
-                }`}
-                key={color}
-                onClick={() => setSelectedColor(color)}
-                style={{ backgroundColor: color }}
-                title={color}
-                type="button"
-              />
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-3">
-            <label className="sr-only" htmlFor="color-picker">
-              Color picker
-            </label>
-            <input
-              className="h-10 w-16 cursor-pointer rounded border-none bg-transparent"
-              id="color-picker"
-              onChange={(e) => setSelectedColor(e.target.value)}
-              type="color"
-              value={selectedColor}
-            />
-            <label className="sr-only" htmlFor="color-hex">
-              Color hex value
-            </label>
-            <input
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2 font-mono text-sm"
-              id="color-hex"
-              onChange={(e) => {
-                if (/^#[0-9A-Fa-f]{0,6}$/.test(e.target.value)) {
-                  setSelectedColor(e.target.value);
-                }
-              }}
-              placeholder="#00ffff"
-              type="text"
-              value={selectedColor}
-            />
-          </div>
+          <FullColorPicker
+            selectedColor={selectedColor}
+            onColorSelect={handleColorChange}
+          />
         </div>
 
         {/* Preview */}

@@ -22,7 +22,6 @@ const {
 	canvasBg: CANVAS_BG_COLOR,
 	grid: GRID_COLOR,
 	border: BORDER_COLOR,
-	hover: HOVER_COLOR,
 } = COLORS;
 
 interface PixelCanvasProps {
@@ -34,6 +33,8 @@ interface PixelCanvasProps {
 		owner: string | null;
 		updateCount: number;
 	}) => void;
+	hoverColor?: string;
+	autoPaint?: boolean;
 }
 
 /**
@@ -48,11 +49,15 @@ function CanvasContent({
 	hoveredPixel,
 	setHoveredPixel,
 	scale,
+	hoverColor,
+	onHoverData,
 }: {
 	onPixelSelect: PixelCanvasProps["onPixelSelect"];
 	hoveredPixel: { x: number; y: number } | null;
 	setHoveredPixel: (pixel: { x: number; y: number } | null) => void;
 	scale: number;
+	hoverColor: string;
+	onHoverData?: (data: { mouseX: number; mouseY: number; updateCount: number } | null) => void;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const pixelDataRef = useRef<Map<string, PixelData>>(new Map());
@@ -64,6 +69,7 @@ function CanvasContent({
 	// Refs to store current values for use in subscription callback
 	const scaleRef = useRef(scale);
 	const hoveredPixelRef = useRef(hoveredPixel);
+	const hoverColorRef = useRef(hoverColor);
 
 	// Keep refs in sync
 	useEffect(() => {
@@ -73,6 +79,10 @@ function CanvasContent({
 	useEffect(() => {
 		hoveredPixelRef.current = hoveredPixel;
 	}, [hoveredPixel]);
+
+	useEffect(() => {
+		hoverColorRef.current = hoverColor;
+	}, [hoverColor]);
 
 	// tRPC utilities for cache updates
 	const utils = api.useUtils();
@@ -93,6 +103,7 @@ function CanvasContent({
 
 		const currentScale = scaleRef.current;
 		const currentHoveredPixel = hoveredPixelRef.current;
+		const currentHoverColor = hoverColorRef.current;
 		const dpr = window.devicePixelRatio || 1;
 
 		// Set canvas size to match the logical canvas size
@@ -135,14 +146,19 @@ function CanvasContent({
 			ctx.fillRect(pixel.x, pixel.y, 1, 1);
 		}
 
-		// Draw hovered pixel highlight
+		// Draw hovered pixel with selected color preview
 		if (currentHoveredPixel) {
-			ctx.strokeStyle = HOVER_COLOR;
+			// Fill pixel with selected color
+			ctx.fillStyle = currentHoverColor;
+			ctx.fillRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
+
+			// Border around the pixel
+			ctx.strokeStyle = currentHoverColor;
 			ctx.lineWidth = 2 / currentScale;
 			ctx.strokeRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
 
 			// Glow effect
-			ctx.shadowColor = HOVER_COLOR;
+			ctx.shadowColor = currentHoverColor;
 			ctx.shadowBlur = 10 / currentScale;
 			ctx.strokeRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
 			ctx.shadowBlur = 0;
@@ -208,10 +224,10 @@ function CanvasContent({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []); // Only run once on mount - renderCanvas and utils are stable refs
 
-	// Re-render on scale/hover changes
+	// Re-render on scale/hover/color changes
 	useEffect(() => {
 		renderCanvas();
-	}, [renderCanvas, scale, hoveredPixel]);
+	}, [renderCanvas, scale, hoveredPixel, hoverColor]);
 
 	/**
 	 * Convert screen coordinates to pixel coordinates
@@ -255,6 +271,18 @@ function CanvasContent({
 			const pixel = screenToPixel(e);
 			setHoveredPixel(pixel);
 
+			// Report hover data for tooltip
+			if (pixel && onHoverData) {
+				const pixelData = pixelDataRef.current.get(`${pixel.x}-${pixel.y}`);
+				onHoverData({
+					mouseX: e.clientX,
+					mouseY: e.clientY,
+					updateCount: pixelData?.updateCount ?? 0,
+				});
+			} else if (onHoverData) {
+				onHoverData(null);
+			}
+
 			// Check if we've moved enough to be considered panning
 			if (mouseDownPos.current && !isPanning.current) {
 				const dx = Math.abs(e.clientX - mouseDownPos.current.x);
@@ -264,7 +292,7 @@ function CanvasContent({
 				}
 			}
 		},
-		[screenToPixel, setHoveredPixel],
+		[screenToPixel, setHoveredPixel, onHoverData],
 	);
 
 	/**
@@ -300,9 +328,10 @@ function CanvasContent({
 	 */
 	const handleMouseLeave = useCallback(() => {
 		setHoveredPixel(null);
+		onHoverData?.(null);
 		mouseDownPos.current = null;
 		isPanning.current = false;
-	}, [setHoveredPixel]);
+	}, [setHoveredPixel, onHoverData]);
 
 	return (
 		<>
@@ -329,14 +358,34 @@ function CanvasContent({
 /**
  * Main PixelCanvas component with pan/zoom functionality
  */
-export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
+export function PixelCanvas({ onPixelSelect, hoverColor = "#00ffff", autoPaint = false }: PixelCanvasProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [hoveredPixel, setHoveredPixel] = useState<{
 		x: number;
 		y: number;
 	} | null>(null);
+	const [hoverData, setHoverData] = useState<{
+		mouseX: number;
+		mouseY: number;
+		updateCount: number;
+	} | null>(null);
 	const [scale, setScale] = useState(INITIAL_ZOOM);
 	const [initialScale, setInitialScale] = useState<number | null>(null);
+
+	// Fetch canvas data to get max price (tRPC caches this)
+	const { data: pixels } = api.canvas.getCanvas.useQuery(undefined, {
+		staleTime: 30000,
+		refetchOnWindowFocus: false,
+	});
+
+	// Calculate max updateCount once on initial load, then never recalculate
+	const [maxUpdateCount, setMaxUpdateCount] = useState<number | null>(null);
+	useEffect(() => {
+		if (pixels && maxUpdateCount === null) {
+			const max = pixels.reduce((m, p) => Math.max(m, p.updateCount), 0);
+			setMaxUpdateCount(max);
+		}
+	}, [pixels, maxUpdateCount]);
 
 	// Calculate initial scale to fit canvas in viewport
 	useEffect(() => {
@@ -410,11 +459,45 @@ export function PixelCanvas({ onPixelSelect }: PixelCanvasProps) {
 						>
 							<CanvasContent
 								hoveredPixel={hoveredPixel}
+								hoverColor={hoverColor}
 								onPixelSelect={onPixelSelect}
 								scale={scale}
 								setHoveredPixel={setHoveredPixel}
+								onHoverData={setHoverData}
 							/>
 						</TransformComponent>
+
+						{/* Auto-paint price tooltip */}
+						{autoPaint && hoverData && (() => {
+							const price = 0.01 * (hoverData.updateCount + 1);
+							// Map price to 0-1 ratio relative to max price on canvas
+							const ratio = maxUpdateCount ? Math.min(hoverData.updateCount / maxUpdateCount, 1) : 0;
+							// Green: hsl(145, 70%, 45%) -> Red: hsl(0, 75%, 50%)
+							const hue = 145 - (ratio * 145);
+							const saturation = 70 + (ratio * 5);
+							const lightness = 45 + (ratio * 5);
+
+							return (
+								<div
+									className="pointer-events-none fixed z-50"
+									style={{
+										left: hoverData.mouseX + 16,
+										top: hoverData.mouseY - 12,
+									}}
+								>
+									<div
+										className="rounded-lg px-3 py-1.5 font-bold text-white text-sm shadow-xl backdrop-blur-sm"
+										style={{
+											background: `linear-gradient(135deg, hsl(${hue}, ${saturation}%, ${lightness}%) 0%, hsl(${Math.max(hue - 15, 0)}, ${saturation + 5}%, ${lightness - 8}%) 100%)`,
+											boxShadow: `0 4px 15px -2px hsla(${hue}, ${saturation}%, ${lightness}%, 0.5), 0 0 0 1px hsla(${hue}, ${saturation}%, ${lightness + 20}%, 0.3) inset`,
+											textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+										}}
+									>
+										${price.toFixed(2)}
+									</div>
+								</div>
+							);
+						})()}
 					</>
 				)}
 			</TransformWrapper>
