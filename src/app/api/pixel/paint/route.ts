@@ -19,16 +19,20 @@ import { facilitator as cdpFacilitatorConfig } from "@coinbase/x402";
 const CANVAS_SIZE = 1000;
 const BASE_PRICE_CENTS = 1; // $0.01 = 1 cent
 const X402_VERSION = 1;
+const MAX_CLAIMS = 10; // Maximum number of times a pixel can be claimed ($0.10 limit)
 
 // Get x402 configuration from environment
-const NETWORK = (process.env.X402_NETWORK ??
+const NETWORK = (process.env.NEXT_PUBLIC_X402_NETWORK ??
   "base-sepolia") as PaymentRequirements["network"];
 const PAY_TO_ADDRESS =
   process.env.X402_PAY_TO_ADDRESS ??
   "0x0000000000000000000000000000000000000000";
 
 // USDC contract config per network (address + EIP-712 domain info)
-const USDC_CONFIG: Record<string, { address: `0x${string}`; name: string; version: string }> = {
+const USDC_CONFIG: Record<
+  string,
+  { address: `0x${string}`; name: string; version: string }
+> = {
   "base-sepolia": {
     address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     name: "USDC",
@@ -149,6 +153,19 @@ export async function POST(request: NextRequest) {
     const currentUpdateCount = existingPixel?.updateCount ?? 0;
     const requestUrl = request.url;
 
+    // Check if pixel has reached max claims
+    if (currentUpdateCount >= MAX_CLAIMS) {
+      return NextResponse.json(
+        {
+          error: "Pixel claim limit reached",
+          message: `This pixel has already been claimed ${MAX_CLAIMS} times and cannot be claimed again.`,
+          maxClaims: MAX_CLAIMS,
+          currentClaims: currentUpdateCount,
+        },
+        { status: 403 }
+      );
+    }
+
     // Create payment requirements
     const paymentRequirements = createPaymentRequirements(
       x,
@@ -194,9 +211,20 @@ export async function POST(request: NextRequest) {
     console.log("[x402] USDC Asset:", paymentRequirements.asset);
     console.log("[x402] PayTo:", paymentRequirements.payTo);
     console.log("[x402] Amount:", paymentRequirements.maxAmountRequired);
-    console.log("[x402] Payer (from):", paymentPayload.payload && "authorization" in paymentPayload.payload ? paymentPayload.payload.authorization.from : "unknown");
-    console.log("[x402] Full payload:", JSON.stringify(paymentPayload, null, 2));
-    console.log("[x402] Full requirements:", JSON.stringify(paymentRequirements, null, 2));
+    console.log(
+      "[x402] Payer (from):",
+      paymentPayload.payload && "authorization" in paymentPayload.payload
+        ? paymentPayload.payload.authorization.from
+        : "unknown"
+    );
+    console.log(
+      "[x402] Full payload:",
+      JSON.stringify(paymentPayload, null, 2)
+    );
+    console.log(
+      "[x402] Full requirements:",
+      JSON.stringify(paymentRequirements, null, 2)
+    );
 
     // Create facilitator instance with CDP config (supports mainnet)
     const facilitator = useFacilitator(cdpFacilitatorConfig);
@@ -207,7 +235,10 @@ export async function POST(request: NextRequest) {
         paymentPayload,
         paymentRequirements
       );
-      console.log("[x402] Verify result:", JSON.stringify(verifyResult, null, 2));
+      console.log(
+        "[x402] Verify result:",
+        JSON.stringify(verifyResult, null, 2)
+      );
     } catch (verifyError) {
       console.error("[x402] Facilitator verify threw:", verifyError);
       throw verifyError;
@@ -364,6 +395,7 @@ export async function GET(request: NextRequest) {
       price: BASE_PRICE_CENTS / 100,
       updateCount: 0,
     },
+    maxClaims: MAX_CLAIMS,
     paymentRequirements,
   });
 }

@@ -8,48 +8,123 @@ import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "./_components/navigation";
 import { PreventBrowserZoom } from "./_components/prevent-browser-zoom";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://x402dollarhomepage.com";
+
 export const metadata: Metadata = {
-	title: "402 Dollar Homepage | $0.01 Per Pixel",
-	description:
-		"Own a piece of internet history. Buy pixels for just $0.01 each on the 402 Dollar Homepage.",
-	icons: [{ rel: "icon", url: "/favicon.ico" }],
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "X402DollarHomepage | Own a Piece of Internet History",
+    template: "%s | X402DollarHomepage",
+  },
+  description:
+    "The modern successor to MillionDollarHomepage. Own a piece of internet history with blockchain-powered pixel ownership. Buy pixels for just $0.01 each. Advertise, create pixel art, or stake your claim on the digital canvas that never forgets.",
+  keywords: [
+    "X402DollarHomepage",
+    "MillionDollarHomepage",
+    "pixel advertising",
+    "internet history",
+    "blockchain pixels",
+    "crypto advertising",
+    "pixel art",
+    "digital real estate",
+    "web3 advertising",
+    "pixel canvas",
+    "buy pixels",
+    "online advertising",
+    "viral marketing",
+    "homepage advertising",
+    "pixel ownership",
+  ],
+  authors: [{ name: "X402DollarHomepage" }],
+  creator: "X402DollarHomepage",
+  publisher: "X402DollarHomepage",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon/apple-touch-icon.png", type: "image/png" }],
+  },
+  manifest: "/favicon/site.webmanifest",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "X402DollarHomepage",
+    title: "X402DollarHomepage | Own a Piece of Internet History",
+    description:
+      "The modern successor to MillionDollarHomepage. Own a piece of internet history with blockchain-powered pixel ownership. Buy pixels for just $0.01 each. Stake your claim on the digital canvas that never forgets.",
+    images: [
+      {
+        url: "/x402hplarge.png",
+        width: 1200,
+        height: 630,
+        alt: "X402DollarHomepage - The Modern Pixel Canvas",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "X402DollarHomepage | Own a Piece of Internet History",
+    description:
+      "The modern successor to MillionDollarHomepage. Buy pixels for just $0.01 each. Blockchain-powered pixel ownership.",
+    images: ["/x402hplarge.png"],
+    creator: "@X402DollarHomepage",
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
+  category: "technology",
 };
 
 export const viewport: Viewport = {
-	width: "device-width",
-	initialScale: 1,
-	maximumScale: 1,
-	userScalable: false,
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 const geistSans = Geist({
-	subsets: ["latin"],
-	variable: "--font-geist-sans",
+  subsets: ["latin"],
+  variable: "--font-geist-sans",
 });
 
 const geistMono = Geist_Mono({
-	subsets: ["latin"],
-	variable: "--font-geist-mono",
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export default function RootLayout({
-	children,
+  children,
 }: Readonly<{ children: React.ReactNode }>) {
-	return (
-		<html
-			className={`${geistSans.variable} ${geistMono.variable}`}
-			lang="en"
-			suppressHydrationWarning
-		>
-			<body className="min-h-screen overflow-hidden font-sans antialiased">
-				<PreventBrowserZoom />
-				<Privy>
-					<TRPCReactProvider>
-						<Navigation />
-						<main>{children}</main>
-					</TRPCReactProvider>
-				</Privy>
-			</body>
-		</html>
-	);
+  return (
+    <html
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      lang="en"
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen overflow-hidden font-sans antialiased">
+        <PreventBrowserZoom />
+        <Privy>
+          <TRPCReactProvider>
+            <Navigation />
+            <main>{children}</main>
+          </TRPCReactProvider>
+        </Privy>
+      </body>
+    </html>
+  );
 }
