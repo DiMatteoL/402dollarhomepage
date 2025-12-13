@@ -9,22 +9,15 @@ const CANVAS_SIZE = 1000;
 const BASE_PRICE = 0.01; // $0.01 per pixel initially
 
 /**
- * Canvas router - handles read-only pixel operations
+ * Canvas router - handles pixel metadata queries
  *
- * NOTE: Pixel painting is now handled by the x402 API route at /api/pixel/paint
- * which implements the actual HTTP 402 payment flow with on-chain verification.
+ * NOTE: Bulk canvas data is served via /api/canvas/binary for efficiency
+ * NOTE: Pixel painting is handled by /api/pixel/paint (HTTP 402 flow)
  */
 export const canvasRouter = createTRPCRouter({
   /**
-   * Get all pixels - returns the current state of the canvas
-   */
-  getCanvas: publicProcedure.query(async ({ ctx }) => {
-    const allPixels = await ctx.db.select().from(pixels);
-    return allPixels;
-  }),
-
-  /**
-   * Get a single pixel by coordinates
+   * Get a single pixel's full metadata by coordinates
+   * Used for displaying pixel details (owner, price, history)
    */
   getPixel: publicProcedure
     .input(
@@ -48,7 +41,7 @@ export const canvasRouter = createTRPCRouter({
         .where(and(eq(pixels.x, input.x), eq(pixels.y, input.y)));
 
       if (!pixel) {
-        // Return default pixel state (unpurchased)
+        // Return default pixel state (unclaimed)
         return {
           x: input.x,
           y: input.y,

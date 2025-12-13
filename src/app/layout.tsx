@@ -69,19 +69,27 @@ export const metadata: Metadata = {
       "The modern successor to MillionDollarHomepage. Own a piece of internet history with blockchain-powered pixel ownership. Buy pixels for just $0.01 each. Stake your claim on the digital canvas that never forgets.",
     images: [
       {
-        url: "/x402hplarge.png",
+        url: `${siteUrl}/x402hplarge.png`,
+        secureUrl: `${siteUrl}/x402hplarge.png`,
         width: 1200,
         height: 630,
         alt: "X402DollarHomepage - The Modern Pixel Canvas",
+        type: "image/png",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
+    site: "@X402DollarHomepage",
     title: "X402DollarHomepage | Own a Piece of Internet History",
     description:
       "The modern successor to MillionDollarHomepage. Buy pixels for just $0.01 each. Blockchain-powered pixel ownership.",
-    images: ["/x402hplarge.png"],
+    images: [
+      {
+        url: `${siteUrl}/x402hplarge.png`,
+        alt: "X402DollarHomepage - The Modern Pixel Canvas",
+      },
+    ],
     creator: "@X402DollarHomepage",
   },
   alternates: {

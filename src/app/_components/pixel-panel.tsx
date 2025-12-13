@@ -6,7 +6,6 @@ import { createWalletClient, custom, publicActions } from "viem";
 import { baseSepolia, base } from "viem/chains";
 import { preparePaymentHeader, signPaymentHeader } from "x402/client";
 import type { PaymentRequirements } from "x402/types";
-import { api } from "~/trpc/react";
 import { FullColorPicker, useRecentColors } from "./color-picker";
 import { useUsdcBalance, getNetworkName } from "~/lib/use-usdc-balance";
 
@@ -43,7 +42,13 @@ function WarningIcon({ className = "" }: { className?: string }) {
 }
 
 // Wallet section for disconnected users
-function WalletDisconnected({ onConnect, isLinkMode = false }: { onConnect: () => void; isLinkMode?: boolean }) {
+function WalletDisconnected({
+  onConnect,
+  isLinkMode = false,
+}: {
+  onConnect: () => void;
+  isLinkMode?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4">
       <div className="flex items-start gap-4">
@@ -56,13 +61,17 @@ function WalletDisconnected({ onConnect, isLinkMode = false }: { onConnect: () =
 
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-[var(--color-text-primary)] mb-1">
-            {isLinkMode ? "Link a wallet to continue" : "Connect to paint your first pixel"}
+            {isLinkMode
+              ? "Link a wallet to continue"
+              : "Connect to paint your first pixel"}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Pixels are paid with{" "}
             <span className="text-[#2775CA] font-medium">USDC</span> on{" "}
             <span className="text-[#0052FF] font-medium">Base</span>.{" "}
-            {isLinkMode ? "Link a wallet to get started." : "Connect your wallet to get started."}
+            {isLinkMode
+              ? "Link a wallet to get started."
+              : "Connect your wallet to get started."}
           </p>
         </div>
       </div>
@@ -211,12 +220,10 @@ export function PixelPanel({
   const { addRecentColor } = useRecentColors();
 
   const [selectedColor, setSelectedColor] = useState(
-    initialColor ?? (pixel?.owner ? pixel.color : "#1d4ed8")
+    initialColor ?? (pixel?.updateCount ? pixel.color : "#1d4ed8")
   );
   const [paymentState, setPaymentState] = useState<PaymentState>("idle");
   const [error, setError] = useState<string | null>(null);
-
-  const utils = api.useUtils();
 
   // Get the first connected wallet
   const activeWallet = wallets[0];
@@ -376,7 +383,7 @@ export function PixelPanel({
         price: result.pixel?.price ?? pixel.price,
         updateCount: result.pixel?.updateCount ?? pixel.updateCount + 1,
       });
-      void utils.canvas.getCanvas.invalidate();
+      // Note: UI updates via Supabase real-time subscription
       onClose();
     } catch (err: unknown) {
       console.error("[x402] Payment error:", err);
@@ -388,7 +395,6 @@ export function PixelPanel({
     selectedColor,
     walletAddress,
     activeWallet,
-    utils,
     onSuccess,
     onClose,
     addRecentColor,
@@ -438,16 +444,17 @@ export function PixelPanel({
               ({pixel.x}, {pixel.y})
             </span>
           </h2>
-          <div className="mt-0.5 flex items-center justify-between text-xs">
-            <span className="text-[var(--color-text-muted)]">
-              {pixel.owner ? (
-                <>Claimed by {pixel.owner.slice(0, 6)}...{pixel.owner.slice(-4)}</>
-              ) : (
-                <>Unclaimed</>
-              )}
-            </span>
-            <span className={`font-mono ${pixel.updateCount >= MAX_CLAIMS ? "text-[var(--color-accent-orange)]" : "text-[var(--color-text-muted)]"}`}>
-              Claim counter: {pixel.updateCount}/{MAX_CLAIMS}
+          <div className="mt-0.5 text-xs">
+            <span
+              className={`font-mono ${
+                pixel.updateCount >= MAX_CLAIMS
+                  ? "text-[var(--color-accent-orange)]"
+                  : "text-[var(--color-text-muted)]"
+              }`}
+            >
+              {pixel.updateCount === 0
+                ? "Unclaimed"
+                : `Claimed ${pixel.updateCount}/${MAX_CLAIMS} times`}
             </span>
           </div>
         </div>
@@ -506,7 +513,9 @@ export function PixelPanel({
             <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
               <div className="flex items-center gap-2">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
-                <span className="text-sm text-[var(--color-text-muted)]">Loading wallet...</span>
+                <span className="text-sm text-[var(--color-text-muted)]">
+                  Loading wallet...
+                </span>
               </div>
             </div>
           ) : isWalletConnected ? (
@@ -530,7 +539,8 @@ export function PixelPanel({
             className="mb-3 rounded-lg border border-[var(--color-accent-orange)] bg-[var(--color-accent-orange)]/10 px-3 py-2 text-[var(--color-accent-orange)] text-xs"
             role="alert"
           >
-            This pixel has reached the maximum of {MAX_CLAIMS} claims and can no longer be painted.
+            This pixel has reached the maximum of {MAX_CLAIMS} claims and can no
+            longer be painted.
           </div>
         )}
 
@@ -574,7 +584,11 @@ export function PixelPanel({
             </button>
             <button
               className="btn-primary flex-1 py-2.5 text-sm"
-              disabled={paymentState === "processing" || hasInsufficientBalance || hasReachedMaxClaims}
+              disabled={
+                paymentState === "processing" ||
+                hasInsufficientBalance ||
+                hasReachedMaxClaims
+              }
               onClick={handlePaint}
               type="button"
               title={

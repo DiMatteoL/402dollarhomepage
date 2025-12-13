@@ -6,7 +6,6 @@ import { createWalletClient, custom, publicActions } from "viem";
 import { baseSepolia, base } from "viem/chains";
 import { preparePaymentHeader, signPaymentHeader } from "x402/client";
 import type { PaymentRequirements } from "x402/types";
-import { api } from "~/trpc/react";
 import {
   DEFAULT_RECENT_COLORS,
   useRecentColors,
@@ -53,7 +52,6 @@ export default function HomePage() {
   const { hasSuccessfulTx, markSuccessfulTransaction } =
     useHasSuccessfulTransaction();
   const { addRecentColor } = useRecentColors();
-  const utils = api.useUtils();
 
   // Show auto-paint checkbox only if wallet connected AND has successful transaction
   const showAutoPaint = authenticated && !!walletAddress && hasSuccessfulTx;
@@ -140,10 +138,9 @@ export default function HomePage() {
           throw new Error(result.error ?? result.reason ?? "Payment failed");
         }
 
-        // Success - update recent colors and invalidate cache
+        // Success - update recent colors (UI updates via Supabase real-time)
         addRecentColor(selectedColor);
         markSuccessfulTransaction();
-        void utils.canvas.getCanvas.invalidate();
       } catch (err) {
         console.error("[Auto Paint] Error:", err);
         // On error, fall back to opening the modal
@@ -158,7 +155,6 @@ export default function HomePage() {
       selectedColor,
       addRecentColor,
       markSuccessfulTransaction,
-      utils,
     ]
   );
 
