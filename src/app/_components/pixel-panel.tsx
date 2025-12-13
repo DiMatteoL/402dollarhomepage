@@ -1,6 +1,6 @@
 "use client";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useWallets, useLinkAccount } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState } from "react";
 import { createWalletClient, custom, publicActions } from "viem";
 import { baseSepolia, base } from "viem/chains";
@@ -43,7 +43,7 @@ function WarningIcon({ className = "" }: { className?: string }) {
 }
 
 // Wallet section for disconnected users
-function WalletDisconnected({ onConnect }: { onConnect: () => void }) {
+function WalletDisconnected({ onConnect, isLinkMode = false }: { onConnect: () => void; isLinkMode?: boolean }) {
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4">
       <div className="flex items-start gap-4">
@@ -56,13 +56,13 @@ function WalletDisconnected({ onConnect }: { onConnect: () => void }) {
 
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-[var(--color-text-primary)] mb-1">
-            Connect to paint your first pixel
+            {isLinkMode ? "Link a wallet to continue" : "Connect to paint your first pixel"}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Pixels are paid with{" "}
             <span className="text-[#2775CA] font-medium">USDC</span> on{" "}
-            <span className="text-[#0052FF] font-medium">Base</span>. Connect
-            your wallet to get started.
+            <span className="text-[#0052FF] font-medium">Base</span>.{" "}
+            {isLinkMode ? "Link a wallet to get started." : "Connect your wallet to get started."}
           </p>
         </div>
       </div>
@@ -72,7 +72,7 @@ function WalletDisconnected({ onConnect }: { onConnect: () => void }) {
         onClick={onConnect}
         type="button"
       >
-        Connect Wallet
+        {isLinkMode ? "Link Wallet" : "Connect Wallet"}
       </button>
     </div>
   );
@@ -205,8 +205,9 @@ export function PixelPanel({
   initialColor,
   onColorChange,
 }: PixelPanelProps) {
-  const { ready, authenticated, login, logout } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready: privyReady, authenticated, login, logout } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const { linkWallet } = useLinkAccount();
   const { addRecentColor } = useRecentColors();
 
   const [selectedColor, setSelectedColor] = useState(
@@ -492,11 +493,24 @@ export function PixelPanel({
 
         {/* Wallet section */}
         <div className="mb-4">
-          {!ready ? (
+          {!privyReady ? (
+            // Privy SDK still initializing
             <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
             </div>
+          ) : !authenticated ? (
+            // User not logged in - show connect wallet
+            <WalletDisconnected onConnect={login} />
+          ) : !walletsReady ? (
+            // User authenticated but wallets still loading
+            <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
+                <span className="text-sm text-[var(--color-text-muted)]">Loading wallet...</span>
+              </div>
+            </div>
           ) : isWalletConnected ? (
+            // Wallet connected
             <WalletConnected
               walletAddress={walletAddress}
               balance={balance}
@@ -505,7 +519,8 @@ export function PixelPanel({
               onDisconnect={logout}
             />
           ) : (
-            <WalletDisconnected onConnect={login} />
+            // Authenticated but no wallet - offer to link one
+            <WalletDisconnected onConnect={linkWallet} isLinkMode />
           )}
         </div>
 
