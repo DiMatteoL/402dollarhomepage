@@ -7,6 +7,7 @@ import { Privy } from "~/lib/privy";
 import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "./_components/navigation";
 import { PreventBrowserZoom } from "./_components/prevent-browser-zoom";
+import { WelcomeModalProvider } from "./_components/welcome-modal";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL || "https://x402dollarhomepage.com";
@@ -128,8 +129,10 @@ export default function RootLayout({
         <PreventBrowserZoom />
         <Privy>
           <TRPCReactProvider>
-            <Navigation />
-            <main>{children}</main>
+            <WelcomeModalProvider>
+              <Navigation />
+              <main>{children}</main>
+            </WelcomeModalProvider>
           </TRPCReactProvider>
         </Privy>
       </body>

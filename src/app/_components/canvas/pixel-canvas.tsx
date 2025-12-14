@@ -33,7 +33,6 @@ interface PixelCanvasProps {
     updateCount: number;
   }) => void;
   hoverColor?: string;
-  autoPaint?: boolean;
 }
 
 /**
@@ -322,7 +321,6 @@ function CanvasContent({
 export function PixelCanvas({
   onPixelSelect,
   hoverColor = "#00ffff",
-  autoPaint = false,
 }: PixelCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredPixel, setHoveredPixel] = useState<{
@@ -429,9 +427,8 @@ export function PixelCanvas({
               />
             </TransformComponent>
 
-            {/* Auto-paint price tooltip */}
-            {autoPaint &&
-              hoverData &&
+            {/* Hover price tooltip - hidden on mobile (no hover), shown on desktop */}
+            {hoverData &&
               (() => {
                 const price = 0.01 * (hoverData.updateCount + 1);
                 const ratio = maxUpdateCount
@@ -443,7 +440,7 @@ export function PixelCanvas({
 
                 return (
                   <div
-                    className="pointer-events-none fixed z-50"
+                    className="pointer-events-none fixed z-50 hidden md:block"
                     style={{
                       left: hoverData.mouseX + 16,
                       top: hoverData.mouseY - 12,

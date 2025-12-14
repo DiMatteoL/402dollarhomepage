@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useWelcomeModal } from "./welcome-modal";
 
 export function Navigation() {
+  const { openModal } = useWelcomeModal();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleDrawer = useCallback(() => {
@@ -115,6 +117,28 @@ export function Navigation() {
               </svg>
               <span>Canvas</span>
             </Link>
+            <button
+              onClick={() => {
+                closeDrawer();
+                openModal();
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-secondary)]"
+            >
+              <svg
+                className="h-5 w-5 text-[var(--color-accent-magenta)]"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>About</span>
+            </button>
           </div>
 
           {/* Divider */}

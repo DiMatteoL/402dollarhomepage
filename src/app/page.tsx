@@ -183,7 +183,6 @@ export default function HomePage() {
         <PixelCanvas
           onPixelSelect={handlePixelSelect}
           hoverColor={selectedColor}
-          autoPaint={autoPaint}
         />
       </div>
 
