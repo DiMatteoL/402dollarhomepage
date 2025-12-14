@@ -213,6 +213,17 @@ export function ClaimModal({
   const pixelCount = pendingPixels.size;
   const priceString = totalPrice.toFixed(2);
 
+  // Calculate breakdown for display
+  const pixels = Array.from(pendingPixels.values());
+  const newClaims = pixels.filter((p) => p.updateCount === 0);
+  const reclaims = pixels.filter((p) => p.updateCount > 0);
+  const nearMaxPixels = pixels.filter((p) => p.updateCount >= 9);
+  const newClaimsPrice = newClaims.length * 0.01;
+  const reclaimsPrice = reclaims.reduce(
+    (sum, p) => sum + 0.01 * (p.updateCount + 1),
+    0
+  );
+
   // Global ESC key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -425,20 +436,57 @@ export function ClaimModal({
           </div>
         </div>
 
-        {/* Price summary */}
-        <div className="mb-4 rounded-lg border border-[var(--color-accent-green)]/30 bg-[var(--color-accent-green)]/5 p-3">
+        {/* Price breakdown */}
+        <div className="mb-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-3 space-y-2">
+          {/* New claims row */}
+          {newClaims.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--color-text-muted)]">
+                {newClaims.length} new pixel{newClaims.length !== 1 ? "s" : ""}
+              </span>
+              <span className="font-mono text-[var(--color-text-secondary)]">
+                ${newClaimsPrice.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Reclaims row */}
+          {reclaims.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--color-accent-orange)]">
+                {reclaims.length} reclaim{reclaims.length !== 1 ? "s" : ""}
+              </span>
+              <span className="font-mono text-[var(--color-accent-orange)]">
+                ${reclaimsPrice.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="border-t border-[var(--color-border)]" />
+
+          {/* Total row */}
           <div className="flex items-center justify-between">
-            <span className="text-sm text-[var(--color-text-secondary)]">
-              Total Cost
+            <span className="text-sm font-medium text-[var(--color-text-primary)]">
+              Total
             </span>
-            <span className="font-bold text-xl text-[var(--color-accent-green)]">
+            <span className="font-bold text-lg text-[var(--color-accent-green)]">
               ${priceString}{" "}
-              <span className="text-sm font-normal text-[var(--color-text-muted)]">
+              <span className="text-xs font-normal text-[var(--color-text-muted)]">
                 USDC
               </span>
             </span>
           </div>
         </div>
+
+        {/* Warning for pixels near max */}
+        {nearMaxPixels.length > 0 && (
+          <div className="mb-4 rounded-lg border border-[var(--color-accent-orange)]/30 bg-[var(--color-accent-orange)]/5 px-3 py-2">
+            <p className="text-xs text-[var(--color-accent-orange)]">
+              ⚠️ {nearMaxPixels.length} pixel{nearMaxPixels.length !== 1 ? "s are" : " is"} at 9/10 claims — this will be the last time{nearMaxPixels.length !== 1 ? " they" : " it"} can be claimed!
+            </p>
+          </div>
+        )}
 
         {/* Wallet section */}
         <div className="mb-4">

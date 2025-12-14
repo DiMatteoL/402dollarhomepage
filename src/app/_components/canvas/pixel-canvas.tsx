@@ -482,12 +482,15 @@ export function PixelCanvas({
             {hoverData &&
               (() => {
                 const price = 0.01 * (hoverData.updateCount + 1);
+                const claimCount = hoverData.updateCount;
+                const maxClaims = 10;
                 const ratio = maxUpdateCount
-                  ? Math.min(hoverData.updateCount / maxUpdateCount, 1)
+                  ? Math.min(claimCount / maxUpdateCount, 1)
                   : 0;
                 const hue = 145 - ratio * 145;
                 const saturation = 70 + ratio * 5;
                 const lightness = 45 + ratio * 5;
+                const isMaxed = claimCount >= maxClaims;
 
                 return (
                   <div
@@ -498,19 +501,34 @@ export function PixelCanvas({
                     }}
                   >
                     <div
-                      className="rounded-lg px-3 py-1.5 font-bold text-white text-sm shadow-xl backdrop-blur-sm"
+                      className="rounded-lg px-3 py-1.5 font-bold text-white text-sm shadow-xl backdrop-blur-sm flex items-center gap-2"
                       style={{
-                        background: `linear-gradient(135deg, hsl(${hue}, ${saturation}%, ${lightness}%) 0%, hsl(${Math.max(
-                          hue - 15,
-                          0
-                        )}, ${saturation + 5}%, ${lightness - 8}%) 100%)`,
-                        boxShadow: `0 4px 15px -2px hsla(${hue}, ${saturation}%, ${lightness}%, 0.5), 0 0 0 1px hsla(${hue}, ${saturation}%, ${
-                          lightness + 20
-                        }%, 0.3) inset`,
+                        background: isMaxed
+                          ? "linear-gradient(135deg, #666 0%, #444 100%)"
+                          : `linear-gradient(135deg, hsl(${hue}, ${saturation}%, ${lightness}%) 0%, hsl(${Math.max(
+                              hue - 15,
+                              0
+                            )}, ${saturation + 5}%, ${lightness - 8}%) 100%)`,
+                        boxShadow: isMaxed
+                          ? "0 4px 15px -2px rgba(100,100,100,0.5)"
+                          : `0 4px 15px -2px hsla(${hue}, ${saturation}%, ${lightness}%, 0.5), 0 0 0 1px hsla(${hue}, ${saturation}%, ${
+                              lightness + 20
+                            }%, 0.3) inset`,
                         textShadow: "0 1px 2px rgba(0,0,0,0.3)",
                       }}
                     >
-                      ${price.toFixed(2)}
+                      {isMaxed ? (
+                        <span>Maxed</span>
+                      ) : (
+                        <>
+                          <span>${price.toFixed(2)}</span>
+                          {claimCount > 0 && (
+                            <span className="text-xs font-normal opacity-80">
+                              {claimCount}/{maxClaims}
+                            </span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 );
