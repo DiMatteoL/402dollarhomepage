@@ -113,7 +113,94 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              4. Third-Party Services
+              4. Payment Processing & Security
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-magenta)]">
+                  How Payments Work
+                </h3>
+                <p>
+                  We use the{" "}
+                  <strong className="text-[var(--color-text-primary)]">
+                    x402 payment protocol
+                  </strong>{" "}
+                  (HTTP 402 micropayments) for all pixel purchases. This protocol
+                  enables secure, gasless USDC transfers on the Base network. When
+                  you paint a pixel, you sign an EIP-3009 authorization that allows
+                  only the exact payment amount to be transferred - nothing more.
+                </p>
+              </div>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-magenta)]">
+                  Payment Recipient
+                </h3>
+                <p>
+                  All pixel payments are sent to our verified wallet address:
+                </p>
+                <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
+                    0x0c1bca2283b125f78c1ade27dd260184e9ec2faf
+                  </code>
+                </p>
+                <p className="mt-2 text-sm">
+                  You can verify this address on{" "}
+                  <a
+                    href="https://basescan.org/address/0x0c1bca2283b125f78c1ade27dd260184e9ec2faf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--color-accent-cyan)] hover:underline"
+                  >
+                    BaseScan
+                  </a>
+                  .
+                </p>
+              </div>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-magenta)]">
+                  What We Never Request
+                </h3>
+                <ul className="list-inside list-disc space-y-2">
+                  <li>
+                    Your seed phrase or Secret Recovery Phrase - <strong className="text-[var(--color-accent-orange)]">NEVER</strong>
+                  </li>
+                  <li>Your private keys</li>
+                  <li>Unlimited token approvals</li>
+                  <li>Access to tokens other than USDC</li>
+                  <li>Permissions to transfer NFTs or other assets</li>
+                </ul>
+              </div>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-magenta)]">
+                  USDC Contract (Base Network)
+                </h3>
+                <p>
+                  Payments use the official Circle USDC contract on Base:
+                </p>
+                <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
+                    0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+                  </code>
+                </p>
+                <p className="mt-2 text-sm">
+                  Verify on{" "}
+                  <a
+                    href="https://basescan.org/token/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--color-accent-cyan)] hover:underline"
+                  >
+                    BaseScan
+                  </a>
+                  .
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="card">
+            <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
+              5. Third-Party Services
             </h2>
             <div className="space-y-4">
               <p>We use the following third-party services:</p>
@@ -132,6 +219,12 @@ export default function PrivacyPolicyPage() {
                 </li>
                 <li>
                   <strong className="text-[var(--color-text-primary)]">
+                    Coinbase x402 Facilitator
+                  </strong>{" "}
+                  - For payment verification and settlement
+                </li>
+                <li>
+                  <strong className="text-[var(--color-text-primary)]">
                     Supabase
                   </strong>{" "}
                   - For database and real-time updates
@@ -146,7 +239,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              5. Data Retention
+              6. Data Retention
             </h2>
             <p>
               Pixel ownership data and transaction history are retained
@@ -158,7 +251,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              6. Your Rights
+              7. Your Rights
             </h2>
             <p className="mb-4">Depending on your location, you may have the right to:</p>
             <ul className="list-inside list-disc space-y-2">
@@ -173,7 +266,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              7. Data Security
+              8. Data Security
             </h2>
             <p>
               We implement appropriate technical and organizational security
@@ -185,7 +278,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              8. Children&apos;s Privacy
+              9. Children&apos;s Privacy
             </h2>
             <p>
               Our service is not intended for individuals under the age of 18.
@@ -197,7 +290,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              9. International Transfers
+              10. International Transfers
             </h2>
             <p>
               Your information may be transferred to and processed in countries
@@ -208,7 +301,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              10. Changes to This Policy
+              11. Changes to This Policy
             </h2>
             <p>
               We may update this privacy policy from time to time. We will
@@ -219,7 +312,7 @@ export default function PrivacyPolicyPage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              11. Contact Us
+              12. Contact Us
             </h2>
             <p>
               If you have any questions about this Privacy Policy or our data

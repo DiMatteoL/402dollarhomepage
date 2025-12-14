@@ -93,9 +93,53 @@ export default function TermsOfServicePage() {
                 </h3>
                 <p>
                   Payments are processed using USDC stablecoin on the Base
-                  network via the x402 payment protocol. You are responsible for
-                  any network transaction fees (gas) associated with your
-                  purchase.
+                  network via the{" "}
+                  <strong className="text-[var(--color-text-primary)]">
+                    x402 payment protocol
+                  </strong>{" "}
+                  (HTTP 402 micropayments). This protocol uses EIP-3009
+                  authorization signatures, meaning you only authorize the exact
+                  payment amount for each pixel - we never request unlimited
+                  approvals or access to your other assets.
+                </p>
+              </div>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
+                  Verified Payment Wallet
+                </h3>
+                <p>
+                  All payments are sent to our verified wallet address:
+                </p>
+                <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
+                    0x0c1bca2283b125f78c1ade27dd260184e9ec2faf
+                  </code>
+                </p>
+                <p className="mt-2 text-sm">
+                  Verify on{" "}
+                  <a
+                    href="https://basescan.org/address/0x0c1bca2283b125f78c1ade27dd260184e9ec2faf"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--color-accent-cyan)] hover:underline"
+                  >
+                    BaseScan
+                  </a>
+                  . Always confirm this address matches before signing any
+                  transaction.
+                </p>
+              </div>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
+                  USDC Contract
+                </h3>
+                <p>
+                  We use the official Circle USDC contract on Base:
+                </p>
+                <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
+                  <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
+                    0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+                  </code>
                 </p>
               </div>
               <div>
@@ -162,15 +206,49 @@ export default function TermsOfServicePage() {
 
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              6. Wallet Security
+              6. Wallet Security & Trust
             </h2>
-            <p>
-              You are solely responsible for maintaining the security of your
-              cryptocurrency wallet and private keys. We are not responsible for
-              any loss of funds due to compromised wallets, phishing attacks, or
-              user error. Never share your private keys or seed phrases with
-              anyone.
-            </p>
+            <div className="space-y-4">
+              <p>
+                You are solely responsible for maintaining the security of your
+                cryptocurrency wallet and private keys. We are not responsible for
+                any loss of funds due to compromised wallets, phishing attacks, or
+                user error.
+              </p>
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+                <h3 className="mb-2 font-medium text-emerald-500">
+                  What We NEVER Request
+                </h3>
+                <ul className="list-inside list-disc space-y-1 text-sm">
+                  <li>Your seed phrase or Secret Recovery Phrase</li>
+                  <li>Your private keys</li>
+                  <li>Unlimited token approvals</li>
+                  <li>Access to any tokens other than USDC for the exact pixel price</li>
+                  <li>Permission to transfer NFTs or other assets</li>
+                </ul>
+              </div>
+              <p className="font-medium text-[var(--color-accent-orange)]">
+                If any website claiming to be X402DollarHomepage asks for your
+                seed phrase or requests unusual permissions, it is NOT us. Report
+                it immediately.
+              </p>
+              <div>
+                <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
+                  Open Source Transparency
+                </h3>
+                <p>
+                  Our entire codebase is open source and available for audit at:{" "}
+                  <a
+                    href="https://github.com/DiMatteoL/402dollarhomepage"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--color-accent-cyan)] hover:underline"
+                  >
+                    github.com/DiMatteoL/402dollarhomepage
+                  </a>
+                </p>
+              </div>
+            </div>
           </section>
 
           <section className="card">
