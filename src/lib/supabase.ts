@@ -17,15 +17,6 @@ export const supabase = createClient(
   }
 );
 
-// Debug: Log Supabase connection info
-if (typeof window !== "undefined") {
-  console.log("[Supabase] URL:", env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log(
-    "[Supabase] Anon key (first 20 chars):",
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.slice(0, 20) + "..."
-  );
-}
-
 /**
  * Database row type as returned by Supabase Realtime
  * Note: Drizzle preserves column names as camelCase in the database
