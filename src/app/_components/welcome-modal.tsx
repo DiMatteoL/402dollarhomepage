@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   createContext,
   useCallback,
@@ -9,13 +10,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Cookies } from "react-cookie-consent";
 
-const STORAGE_KEY = "x402-welcome-seen";
+const COOKIE_CONSENT_NAME = "x402-cookie-consent";
 
 interface WelcomeModalContextType {
   isOpen: boolean;
   openModal: () => void;
-  closeModal: () => void;
+  closeModal: (acceptCookies?: boolean) => void;
 }
 
 const WelcomeModalContext = createContext<WelcomeModalContextType | null>(null);
@@ -30,31 +32,37 @@ export function useWelcomeModal() {
 
 export function WelcomeModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
+  const [hasCheckedCookie, setHasCheckedCookie] = useState(false);
 
-  // Check localStorage on mount
+  // Check cookie consent on mount - show modal if not accepted
   useEffect(() => {
-    const hasSeenWelcome = localStorage.getItem(STORAGE_KEY);
-    if (!hasSeenWelcome) {
+    const consent = Cookies.get(COOKIE_CONSENT_NAME);
+    if (consent !== "true") {
       setIsOpen(true);
     }
-    setHasCheckedStorage(true);
+    setHasCheckedCookie(true);
   }, []);
 
   const openModal = useCallback(() => {
     setIsOpen(true);
   }, []);
 
-  const closeModal = useCallback(() => {
+  const closeModal = useCallback((acceptCookies?: boolean) => {
     setIsOpen(false);
-    localStorage.setItem(STORAGE_KEY, "true");
+
+    // Set cookie consent
+    if (acceptCookies === true) {
+      Cookies.set(COOKIE_CONSENT_NAME, "true", { expires: 365 });
+    } else if (acceptCookies === false) {
+      Cookies.set(COOKIE_CONSENT_NAME, "false", { expires: 365 });
+    }
   }, []);
 
-  // Close on escape key
+  // Close on escape key (treats as decline)
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
-        closeModal();
+        closeModal(false);
       }
     };
     document.addEventListener("keydown", handleEscape);
@@ -64,18 +72,22 @@ export function WelcomeModalProvider({ children }: { children: ReactNode }) {
   return (
     <WelcomeModalContext.Provider value={{ isOpen, openModal, closeModal }}>
       {children}
-      {hasCheckedStorage && isOpen && <WelcomeModal onClose={closeModal} />}
+      {hasCheckedCookie && isOpen && <WelcomeModal onClose={closeModal} />}
     </WelcomeModalContext.Provider>
   );
 }
 
-function WelcomeModal({ onClose }: { onClose: () => void }) {
+function WelcomeModal({
+  onClose,
+}: {
+  onClose: (acceptCookies?: boolean) => void;
+}) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={() => onClose(false)}
         aria-hidden="true"
       />
 
@@ -88,7 +100,7 @@ function WelcomeModal({ onClose }: { onClose: () => void }) {
 
           {/* Close button */}
           <button
-            onClick={onClose}
+            onClick={() => onClose(false)}
             className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text-primary)]"
             aria-label="Close modal"
           >
@@ -221,26 +233,46 @@ function WelcomeModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
 
-            {/* CTA */}
-            <button
-              onClick={onClose}
-              className="btn btn-primary w-full text-base"
-            >
-              <span>Start Painting</span>
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* Privacy notice */}
+            <p className="mb-4 text-center text-[var(--color-text-muted)] text-xs">
+              By continuing, you agree to our use of cookies for analytics and
+              wallet connections.{" "}
+              <Link
+                href="/privacy"
+                className="text-[var(--color-accent-cyan)] underline underline-offset-2 hover:text-[var(--color-accent-cyan)]/80"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </button>
+                Privacy Policy
+              </Link>
+            </p>
+
+            {/* CTA Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => onClose(false)}
+                className="btn btn-secondary flex-1 text-sm"
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => onClose(true)}
+                className="btn btn-primary flex-1 text-base"
+              >
+                <span>Accept & Start</span>
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 7l5 5m0 0l-5 5m5-5H6"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>

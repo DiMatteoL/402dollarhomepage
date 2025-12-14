@@ -33,15 +33,23 @@ export default function TermsOfServicePage() {
         <div className="space-y-8 text-[var(--color-text-secondary)]">
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              1. Acceptance of Terms
+              1. Legal Entity & Acceptance of Terms
             </h2>
+            <p className="mb-4">
+              X402DollarHomepage (&quot;the Service&quot;) is operated by{" "}
+              <strong className="text-[var(--color-text-primary)]">
+                SAS Catalytech
+              </strong>
+              , a French company (Société par Actions Simplifiée). When we refer
+              to &quot;we,&quot; &quot;our,&quot; or &quot;us&quot; in these
+              terms, we mean SAS Catalytech.
+            </p>
             <p>
-              By accessing or using X402DollarHomepage (&quot;the
-              Service&quot;), you agree to be bound by these Terms of Service.
-              If you do not agree to these terms, please do not use our Service.
-              We reserve the right to modify these terms at any time, and your
-              continued use of the Service constitutes acceptance of any
-              changes.
+              By accessing or using the Service, you agree to be bound by these
+              Terms of Service. If you do not agree to these terms, please do
+              not use our Service. We reserve the right to modify these terms at
+              any time, and your continued use of the Service constitutes
+              acceptance of any changes.
             </p>
           </section>
 
@@ -107,9 +115,7 @@ export default function TermsOfServicePage() {
                 <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
                   Verified Payment Wallet
                 </h3>
-                <p>
-                  All payments are sent to our verified wallet address:
-                </p>
+                <p>All payments are sent to our verified wallet address:</p>
                 <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
                   <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
                     0x0c1bca2283b125f78c1ade27dd260184e9ec2faf
@@ -133,9 +139,7 @@ export default function TermsOfServicePage() {
                 <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
                   USDC Contract
                 </h3>
-                <p>
-                  We use the official Circle USDC contract on Base:
-                </p>
+                <p>We use the official Circle USDC contract on Base:</p>
                 <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
                   <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
                     0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
@@ -174,28 +178,16 @@ export default function TermsOfServicePage() {
               You agree not to use the Service to display or create:
             </p>
             <ul className="list-inside list-disc space-y-2">
-              <li>
-                Illegal content or content promoting illegal activities
-              </li>
+              <li>Illegal content or content promoting illegal activities</li>
               <li>
                 Hateful, discriminatory, or harassing content targeting any
                 individual or group
               </li>
-              <li>
-                Pornographic, sexually explicit, or obscene material
-              </li>
-              <li>
-                Content that infringes on intellectual property rights
-              </li>
-              <li>
-                Malicious content including malware, phishing, or scams
-              </li>
-              <li>
-                Personal information of others without consent
-              </li>
-              <li>
-                Content that violates any applicable laws or regulations
-              </li>
+              <li>Pornographic, sexually explicit, or obscene material</li>
+              <li>Content that infringes on intellectual property rights</li>
+              <li>Malicious content including malware, phishing, or scams</li>
+              <li>Personal information of others without consent</li>
+              <li>Content that violates any applicable laws or regulations</li>
             </ul>
             <p className="mt-4">
               We reserve the right to remove or modify any content that violates
@@ -211,9 +203,9 @@ export default function TermsOfServicePage() {
             <div className="space-y-4">
               <p>
                 You are solely responsible for maintaining the security of your
-                cryptocurrency wallet and private keys. We are not responsible for
-                any loss of funds due to compromised wallets, phishing attacks, or
-                user error.
+                cryptocurrency wallet and private keys. We are not responsible
+                for any loss of funds due to compromised wallets, phishing
+                attacks, or user error.
               </p>
               <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
                 <h3 className="mb-2 font-medium text-emerald-500">
@@ -223,14 +215,17 @@ export default function TermsOfServicePage() {
                   <li>Your seed phrase or Secret Recovery Phrase</li>
                   <li>Your private keys</li>
                   <li>Unlimited token approvals</li>
-                  <li>Access to any tokens other than USDC for the exact pixel price</li>
+                  <li>
+                    Access to any tokens other than USDC for the exact pixel
+                    price
+                  </li>
                   <li>Permission to transfer NFTs or other assets</li>
                 </ul>
               </div>
               <p className="font-medium text-[var(--color-accent-orange)]">
                 If any website claiming to be X402DollarHomepage asks for your
-                seed phrase or requests unusual permissions, it is NOT us. Report
-                it immediately.
+                seed phrase or requests unusual permissions, it is NOT us.
+                Report it immediately.
               </p>
               <div>
                 <h3 className="mb-2 font-medium text-[var(--color-accent-cyan)]">
@@ -318,10 +313,11 @@ export default function TermsOfServicePage() {
               10. Indemnification
             </h2>
             <p>
-              You agree to indemnify and hold harmless X402DollarHomepage, its
-              operators, and affiliates from any claims, damages, losses, or
-              expenses arising from your use of the Service, violation of these
-              terms, or infringement of any third-party rights.
+              You agree to indemnify and hold harmless SAS Catalytech,
+              X402DollarHomepage, its operators, and affiliates from any claims,
+              damages, losses, or expenses arising from your use of the Service,
+              violation of these terms, or infringement of any third-party
+              rights.
             </p>
           </section>
 
@@ -343,9 +339,10 @@ export default function TermsOfServicePage() {
             </h2>
             <p>
               These Terms shall be governed by and construed in accordance with
-              the laws of the jurisdiction in which we operate, without regard
-              to conflict of law principles. Any disputes shall be resolved
-              through binding arbitration in accordance with applicable rules.
+              the laws of France, as SAS Catalytech is a French company. Any
+              disputes shall be resolved through binding arbitration in
+              accordance with applicable rules, or through the competent courts
+              in France.
             </p>
           </section>
 
@@ -363,15 +360,24 @@ export default function TermsOfServicePage() {
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
               14. Contact
             </h2>
-            <p>
-              For questions about these Terms of Service, please contact us at:{" "}
-              <a
-                href="mailto:luca7dimatteo@gmail.com"
-                className="text-[var(--color-accent-cyan)] hover:underline"
-              >
-                luca7dimatteo@gmail.com
-              </a>
-            </p>
+            <div className="space-y-2">
+              <p>
+                <strong className="text-[var(--color-text-primary)]">
+                  Legal Entity:
+                </strong>{" "}
+                SAS Catalytech
+              </p>
+              <p>
+                For questions about these Terms of Service, please contact us
+                at:{" "}
+                <a
+                  href="mailto:luca7dimatteo@gmail.com"
+                  className="text-[var(--color-accent-cyan)] hover:underline"
+                >
+                  luca7dimatteo@gmail.com
+                </a>
+              </p>
+            </div>
           </section>
         </div>
 

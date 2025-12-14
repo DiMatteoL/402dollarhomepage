@@ -33,14 +33,23 @@ export default function PrivacyPolicyPage() {
         <div className="space-y-8 text-[var(--color-text-secondary)]">
           <section className="card">
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
-              1. Introduction
+              1. Introduction & Data Controller
             </h2>
+            <p className="mb-4">
+              Welcome to X402DollarHomepage. This service is operated by{" "}
+              <strong className="text-[var(--color-text-primary)]">
+                SAS Catalytech
+              </strong>
+              , a French company (Société par Actions Simplifiée), which acts as
+              the data controller for your personal information. When we refer
+              to &quot;we,&quot; &quot;our,&quot; or &quot;us&quot; in this
+              policy, we mean SAS Catalytech.
+            </p>
             <p>
-              Welcome to X402DollarHomepage (&quot;we,&quot; &quot;our,&quot; or
-              &quot;us&quot;). We respect your privacy and are committed to
-              protecting your personal data. This privacy policy explains how we
-              collect, use, and safeguard your information when you use our
-              pixel canvas service.
+              We respect your privacy and are committed to protecting your
+              personal data. This privacy policy explains how we collect, use,
+              and safeguard your information when you use our pixel canvas
+              service.
             </p>
           </section>
 
@@ -125,10 +134,11 @@ export default function PrivacyPolicyPage() {
                   <strong className="text-[var(--color-text-primary)]">
                     x402 payment protocol
                   </strong>{" "}
-                  (HTTP 402 micropayments) for all pixel purchases. This protocol
-                  enables secure, gasless USDC transfers on the Base network. When
-                  you paint a pixel, you sign an EIP-3009 authorization that allows
-                  only the exact payment amount to be transferred - nothing more.
+                  (HTTP 402 micropayments) for all pixel purchases. This
+                  protocol enables secure, gasless USDC transfers on the Base
+                  network. When you paint a pixel, you sign an EIP-3009
+                  authorization that allows only the exact payment amount to be
+                  transferred - nothing more.
                 </p>
               </div>
               <div>
@@ -162,7 +172,10 @@ export default function PrivacyPolicyPage() {
                 </h3>
                 <ul className="list-inside list-disc space-y-2">
                   <li>
-                    Your seed phrase or Secret Recovery Phrase - <strong className="text-[var(--color-accent-orange)]">NEVER</strong>
+                    Your seed phrase or Secret Recovery Phrase -{" "}
+                    <strong className="text-[var(--color-accent-orange)]">
+                      NEVER
+                    </strong>
                   </li>
                   <li>Your private keys</li>
                   <li>Unlimited token approvals</li>
@@ -174,9 +187,7 @@ export default function PrivacyPolicyPage() {
                 <h3 className="mb-2 font-medium text-[var(--color-accent-magenta)]">
                   USDC Contract (Base Network)
                 </h3>
-                <p>
-                  Payments use the official Circle USDC contract on Base:
-                </p>
+                <p>Payments use the official Circle USDC contract on Base:</p>
                 <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
                   <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
                     0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
@@ -253,7 +264,9 @@ export default function PrivacyPolicyPage() {
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
               7. Your Rights
             </h2>
-            <p className="mb-4">Depending on your location, you may have the right to:</p>
+            <p className="mb-4">
+              Depending on your location, you may have the right to:
+            </p>
             <ul className="list-inside list-disc space-y-2">
               <li>Access the personal data we hold about you</li>
               <li>Request correction of inaccurate data</li>
@@ -293,9 +306,11 @@ export default function PrivacyPolicyPage() {
               10. International Transfers
             </h2>
             <p>
-              Your information may be transferred to and processed in countries
-              other than your own. We ensure appropriate safeguards are in place
-              to protect your data in accordance with this privacy policy.
+              SAS Catalytech is based in France. Your information may be
+              transferred to and processed in countries other than your own. We
+              ensure appropriate safeguards are in place to protect your data in
+              accordance with this privacy policy and applicable data protection
+              regulations, including GDPR.
             </p>
           </section>
 
@@ -314,16 +329,24 @@ export default function PrivacyPolicyPage() {
             <h2 className="mb-4 font-semibold text-[var(--color-text-primary)] text-xl">
               12. Contact Us
             </h2>
-            <p>
-              If you have any questions about this Privacy Policy or our data
-              practices, please contact us at:{" "}
-              <a
-                href="mailto:luca7dimatteo@gmail.com"
-                className="text-[var(--color-accent-cyan)] hover:underline"
-              >
-                luca7dimatteo@gmail.com
-              </a>
-            </p>
+            <div className="space-y-2">
+              <p>
+                <strong className="text-[var(--color-text-primary)]">
+                  Data Controller:
+                </strong>{" "}
+                SAS Catalytech
+              </p>
+              <p>
+                If you have any questions about this Privacy Policy or our data
+                practices, please contact us at:{" "}
+                <a
+                  href="mailto:luca7dimatteo@gmail.com"
+                  className="text-[var(--color-accent-cyan)] hover:underline"
+                >
+                  luca7dimatteo@gmail.com
+                </a>
+              </p>
+            </div>
           </section>
         </div>
 
