@@ -42,12 +42,15 @@ const config = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.privy.io https://challenges.cloudflare.com",
+              // Scripts: Privy, Cloudflare, GA4, Hotjar, Sentry
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.privy.io https://challenges.cloudflare.com https://*.googletagmanager.com https://*.google-analytics.com https://*.hotjar.com https://*.sentry.io",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-              "font-src 'self' https://fonts.gstatic.com",
+              "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://*.privy.io https://*.rpc.privy.systems wss://relay.walletconnect.com wss://relay.walletconnect.org https://*.supabase.co wss://*.supabase.co https://*.coinbase.com https://*.base.org https://mainnet.base.org https://sepolia.base.org https://*.infura.io https://*.alchemy.com wss://*.alchemy.com https://cloudflare-eth.com https://*.sentry.io",
-              "frame-src 'self' https://*.privy.io https://challenges.cloudflare.com https://verify.walletconnect.com https://verify.walletconnect.org",
+              // Connections: Wallets, Supabase, RPCs, Analytics, Sentry
+              "connect-src 'self' https://*.privy.io https://*.rpc.privy.systems https://*.walletconnect.com https://*.walletconnect.org wss://*.walletconnect.com wss://*.walletconnect.org https://*.supabase.co wss://*.supabase.co https://*.coinbase.com https://*.base.org https://mainnet.base.org https://sepolia.base.org https://*.infura.io https://*.alchemy.com wss://*.alchemy.com https://cloudflare-eth.com https://*.sentry.io https://*.google-analytics.com https://*.googletagmanager.com https://*.hotjar.com https://*.hotjar.io",
+              // Frames: Privy, Cloudflare, WalletConnect, Hotjar
+              "frame-src 'self' https://*.privy.io https://challenges.cloudflare.com https://verify.walletconnect.com https://verify.walletconnect.org https://*.hotjar.com",
               "frame-ancestors 'none'",
               "form-action 'self'",
               "base-uri 'self'",

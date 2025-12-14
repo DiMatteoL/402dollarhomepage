@@ -18,15 +18,14 @@ export function Privy({ children }: Props) {
           theme: "dark",
           accentColor: "#00ffff",
         },
-        loginMethods: ["email", "wallet", "google", "twitter"],
+        loginMethods: ["wallet"],
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",
           },
         },
-        // Configure supported chains for x402 payments
-        supportedChains: [baseSepolia, base],
-        defaultChain: baseSepolia,
+        supportedChains: [base],
+        defaultChain: base,
       }}
     >
       {children}

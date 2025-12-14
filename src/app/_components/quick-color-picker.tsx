@@ -40,7 +40,7 @@ export function QuickColorPicker({
   const hasPending = pendingInfo && pendingInfo.count > 0;
 
   return (
-    <div className="fixed bottom-3 left-0 right-0 z-40 flex flex-col items-center">
+    <div className="fixed bottom-3 left-0 right-0 z-40 flex flex-col items-center pointer-events-none">
       {/* Container that moves up smoothly when claim bar appears */}
       <div
         className="flex flex-col items-center transition-transform duration-300 ease-in-out"
@@ -58,7 +58,7 @@ export function QuickColorPicker({
           </div>
 
           {/* Color swatches */}
-          <div className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/95 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3 shadow-2xl shadow-black/50">
+          <div className="flex items-center gap-1.5 sm:gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/95 backdrop-blur-md px-3 sm:px-4 py-2.5 sm:py-3 shadow-2xl shadow-black/50 pointer-events-auto">
             <div className="flex items-center gap-1 sm:gap-1.5">
               {recentColors.map((color) => (
                 <ColorSwatch
@@ -87,10 +87,12 @@ export function QuickColorPicker({
           style={{
             opacity: hasPending ? 1 : 0,
             transform: hasPending ? "translateY(0)" : "translateY(10px)",
-            pointerEvents: hasPending ? "auto" : "none",
           }}
         >
-          <div className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/95 backdrop-blur-md px-2.5 sm:px-4 py-2 sm:py-3 shadow-2xl shadow-black/50">
+          <div
+            className="flex items-center gap-2 sm:gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]/95 backdrop-blur-md px-2.5 sm:px-4 py-2 sm:py-3 shadow-2xl shadow-black/50"
+            style={{ pointerEvents: hasPending ? "auto" : "none" }}
+          >
             {/* Claim button - compact on mobile */}
             <button
               onClick={pendingInfo?.onClaim}
