@@ -9,7 +9,7 @@ import { HoveredPixelInfo, LoadingOverlay, ZoomIndicator } from "./canvas-info";
 import { CANVAS_SIZE, COLORS } from "./types";
 
 // Zoom configuration
-const MIN_ZOOM = 0.1;
+const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 40;
 
 // Use colors from types
@@ -60,7 +60,12 @@ function CanvasContent({
   ) => void;
   pixels: Map<string, CanvasPixel>;
   isLoading: boolean;
-  updatePixel: (x: number, y: number, color: string, updateCount: number) => void;
+  updatePixel: (
+    x: number,
+    y: number,
+    color: string,
+    updateCount: number
+  ) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -393,7 +398,9 @@ export function PixelCanvas({
           setScale(state.scale);
         }}
         panning={{ velocityDisabled: true }}
-        wheel={{ step: 0.5 }}
+        pinch={{ step: 0.1 }}
+        wheel={{ step: 0.1 }}
+        smooth={false}
       >
         {() => (
           <>

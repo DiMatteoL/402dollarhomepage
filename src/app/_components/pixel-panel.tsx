@@ -18,15 +18,29 @@ interface PixelInfo {
   updateCount: number;
 }
 
+interface PaintRequest {
+  body: { x: number; y: number; color: string };
+  paymentHeader: string;
+  pixel: PixelInfo;
+  selectedColor: string;
+}
+
 interface PixelPanelProps {
   pixel: PixelInfo | null;
   onClose: () => void;
   onSuccess: (pixel: PixelInfo) => void;
+  onPaintStart?: (request: PaintRequest) => void;
   initialColor?: string;
   onColorChange?: (color: string) => void;
+  // Auto-paint props
+  autoPaint?: boolean;
+  onAutoPaintChange?: (enabled: boolean) => void;
+  showAutoPaint?: boolean;
 }
 
-type PaymentState = "idle" | "processing" | "success" | "error";
+export type { PaintRequest };
+
+type PaymentState = "idle" | "preparing" | "signing" | "submitting" | "success" | "error";
 
 const X402_VERSION = 1;
 const CHAINS = { "base-sepolia": baseSepolia, base } as const;
@@ -211,8 +225,12 @@ export function PixelPanel({
   pixel,
   onClose,
   onSuccess,
+  onPaintStart,
   initialColor,
   onColorChange,
+  autoPaint = false,
+  onAutoPaintChange,
+  showAutoPaint = false,
 }: PixelPanelProps) {
   const { ready: privyReady, authenticated, login, logout } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
@@ -245,15 +263,22 @@ export function PixelPanel({
     onColorChange?.(color);
   };
 
-  // Global ESC key handler
+  // Global ESC key handler - only when not processing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && paymentState === "idle") {
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, paymentState]);
+
+  // Cancel handler - resets state and closes
+  const handleCancel = useCallback(() => {
+    setPaymentState("idle");
+    setError(null);
+    onClose();
   }, [onClose]);
 
   /**
@@ -266,7 +291,7 @@ export function PixelPanel({
     }
 
     setError(null);
-    setPaymentState("processing");
+    setPaymentState("preparing");
 
     try {
       const body = { x: pixel.x, y: pixel.y, color: selectedColor };
@@ -324,7 +349,8 @@ export function PixelPanel({
         transport: custom(provider),
       }).extend(publicActions);
 
-      // 4. Sign payment header
+      // 4. Sign payment header - waiting for user authorization
+      setPaymentState("signing");
       console.log("[x402] Wallet type:", activeWallet.walletClientType);
       console.log("[x402] Preparing payment header for:", walletAddress);
       const unsigned = preparePaymentHeader(
@@ -356,36 +382,61 @@ export function PixelPanel({
         console.log("[x402] Could not decode payment header");
       }
 
-      // 5. Submit with payment
-      const payRes = await fetch("/api/pixel/paint", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-PAYMENT": paymentHeader,
-        },
-        body: JSON.stringify(body),
-      });
+      // 5. Close modal and hand off to parent for submission
+      // The "painting" and "success" states will be shown via the top status indicator
+      onClose();
 
-      const result = await payRes.json().catch(() => ({}));
-      console.log("[x402] Payment response:", payRes.status, result);
+      if (onPaintStart) {
+        // Parent will handle submission and show status indicator
+        onPaintStart({
+          body,
+          paymentHeader,
+          pixel,
+          selectedColor,
+        });
+      } else {
+        // Fallback: handle submission here if no onPaintStart provided
+        const payRes = await fetch("/api/pixel/paint", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-PAYMENT": paymentHeader,
+          },
+          body: JSON.stringify(body),
+        });
 
-      if (!payRes.ok) {
-        throw new Error(result.error ?? result.reason ?? "Payment failed");
+        const result = await payRes.json().catch(() => ({}));
+        console.log("[x402] Payment response:", payRes.status, result);
+
+        if (!payRes.ok) {
+          throw new Error(result.error ?? result.reason ?? "Payment failed");
+        }
+
+        // Add to recent colors on successful paint
+        addRecentColor(selectedColor);
+        onSuccess({
+          ...pixel,
+          color: selectedColor,
+          owner: walletAddress,
+          price: result.pixel?.price ?? pixel.price,
+          updateCount: result.pixel?.updateCount ?? pixel.updateCount + 1,
+        });
+      }
+    } catch (err: unknown) {
+      // Handle wallet rejection gracefully (user denied signature)
+      const errorMessage = err instanceof Error ? err.message.toLowerCase() : "";
+      if (
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("denied") ||
+        errorMessage.includes("cancelled") ||
+        errorMessage.includes("canceled") ||
+        errorMessage.includes("user refused")
+      ) {
+        console.log("[x402] User rejected transaction");
+        setPaymentState("idle");
+        return;
       }
 
-      setPaymentState("success");
-      // Add to recent colors on successful paint
-      addRecentColor(selectedColor);
-      onSuccess({
-        ...pixel,
-        color: selectedColor,
-        owner: walletAddress,
-        price: result.pixel?.price ?? pixel.price,
-        updateCount: result.pixel?.updateCount ?? pixel.updateCount + 1,
-      });
-      // Note: UI updates via Supabase real-time subscription
-      onClose();
-    } catch (err: unknown) {
       console.error("[x402] Payment error:", err);
       setError(err instanceof Error ? err.message : "Payment failed");
       setPaymentState("error");
@@ -397,6 +448,7 @@ export function PixelPanel({
     activeWallet,
     onSuccess,
     onClose,
+    onPaintStart,
     addRecentColor,
   ]);
 
@@ -408,6 +460,7 @@ export function PixelPanel({
   const hasInsufficientBalance =
     !balanceLoading && balance !== null && balanceNum < parseFloat(nextPrice);
   const hasReachedMaxClaims = pixel.updateCount >= MAX_CLAIMS;
+  const isProcessing = paymentState === "preparing" || paymentState === "signing";
 
   return (
     <div
@@ -420,7 +473,7 @@ export function PixelPanel({
       <button
         aria-label="Close panel"
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleCancel}
         type="button"
       />
 
@@ -430,7 +483,7 @@ export function PixelPanel({
         <button
           aria-label="Close"
           className="absolute top-3 right-3 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
-          onClick={onClose}
+          onClick={handleCancel}
           type="button"
         >
           ✕
@@ -554,21 +607,73 @@ export function PixelPanel({
           </div>
         )}
 
-        {/* Payment status */}
-        {paymentState !== "idle" && paymentState !== "error" && (
-          <output className="mb-3 block rounded-lg bg-[var(--color-bg-tertiary)] px-3 py-2">
-            <div className="flex items-center gap-2">
-              {paymentState === "success" ? (
-                <span className="text-[var(--color-accent-green)]">✓</span>
+        {/* Payment status - only shows preparing/signing (submitting/success are shown via top indicator) */}
+        {(paymentState === "preparing" || paymentState === "signing") && (
+          <output className="mb-3 block rounded-lg px-3 py-2.5 bg-[var(--color-bg-tertiary)]">
+            <div className="flex items-center gap-3">
+              {paymentState === "signing" ? (
+                <div className="relative flex h-6 w-6 items-center justify-center">
+                  <div className="absolute inset-0 rounded-full border-2 border-[var(--color-accent-magenta)]/30" />
+                  <div className="absolute inset-0 rounded-full border-2 border-[var(--color-accent-magenta)] border-t-transparent animate-spin" />
+                  <svg className="h-3 w-3 text-[var(--color-accent-magenta)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <polyline points="10 17 15 12 10 7" />
+                    <line x1="15" y1="12" x2="3" y2="12" />
+                  </svg>
+                </div>
               ) : (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
+                <div className="h-6 w-6 flex items-center justify-center">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-text-muted)] border-t-transparent" />
+                </div>
               )}
-              <span className="text-xs">
-                {paymentState === "processing" && "Processing payment..."}
-                {paymentState === "success" && "Pixel painted successfully!"}
-              </span>
+              <div className="flex-1">
+                <span className={`text-sm font-medium ${
+                  paymentState === "signing"
+                    ? "text-[var(--color-accent-magenta)]"
+                    : "text-[var(--color-text-secondary)]"
+                }`}>
+                  {paymentState === "preparing" && "Preparing..."}
+                  {paymentState === "signing" && "Authorizing..."}
+                </span>
+                {paymentState === "signing" && (
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                    Please confirm in your wallet
+                  </p>
+                )}
+              </div>
             </div>
           </output>
+        )}
+
+        {/* Auto-paint toggle - only show for eligible users */}
+        {isWalletConnected && showAutoPaint && (
+          <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2.5 transition-colors hover:border-[var(--color-border-hover)]">
+            <input
+              type="checkbox"
+              checked={autoPaint}
+              onChange={(e) => onAutoPaintChange?.(e.target.checked)}
+              className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[var(--color-accent-cyan)] focus:ring-[var(--color-accent-cyan)] focus:ring-offset-0"
+            />
+            <div className="flex-1">
+              <span className="text-sm text-[var(--color-text-primary)]">
+                Auto-paint on click
+              </span>
+              <p className="text-[10px] text-[var(--color-text-muted)]">
+                Skip this modal and paint directly
+              </p>
+            </div>
+            <svg
+              className="h-4 w-4 text-[var(--color-accent-cyan)]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+          </label>
         )}
 
         {/* Action buttons - only show when wallet is connected */}
@@ -576,8 +681,7 @@ export function PixelPanel({
           <div className="flex gap-2">
             <button
               className="btn-secondary flex-1 py-2.5 text-sm"
-              disabled={paymentState === "processing"}
-              onClick={onClose}
+              onClick={handleCancel}
               type="button"
             >
               Cancel
@@ -585,7 +689,7 @@ export function PixelPanel({
             <button
               className="btn-primary flex-1 py-2.5 text-sm"
               disabled={
-                paymentState === "processing" ||
+                isProcessing ||
                 hasInsufficientBalance ||
                 hasReachedMaxClaims
               }
@@ -599,8 +703,10 @@ export function PixelPanel({
                   : undefined
               }
             >
-              {paymentState === "processing"
-                ? "Processing..."
+              {isProcessing
+                ? paymentState === "signing"
+                  ? "Authorizing..."
+                  : "Preparing..."
                 : hasReachedMaxClaims
                 ? "Max Claims Reached"
                 : hasInsufficientBalance

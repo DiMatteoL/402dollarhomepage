@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { usePresence } from "~/lib/use-presence";
 import { useWelcomeModal } from "./welcome-modal";
 
 export function Navigation() {
   const { openModal } = useWelcomeModal();
+  const onlineCount = usePresence();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const toggleDrawer = useCallback(() => {
@@ -49,7 +51,15 @@ export function Navigation() {
             </div>
           </Link>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {/* Online Count */}
+            <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-2">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              <span className="text-[var(--color-text-secondary)] text-sm">
+                {onlineCount}
+              </span>
+            </div>
+
             {/* Menu Button */}
             <button
               onClick={toggleDrawer}

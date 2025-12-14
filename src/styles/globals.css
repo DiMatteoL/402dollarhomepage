@@ -86,7 +86,7 @@ body::after {
 		rgba(0, 0, 0, 0.03) 4px
 	);
 	pointer-events: none;
-	z-index: 1000;
+	z-index: 1;
 }
 
 /* Custom scrollbar */
@@ -177,6 +177,86 @@ body::after {
 		opacity: 1;
 		transform: translateY(0);
 	}
+}
+
+@keyframes success-burst {
+	0% {
+		transform: scale(0.8);
+		opacity: 0;
+	}
+	50% {
+		transform: scale(1.05);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+@keyframes checkmark-draw {
+	0% {
+		stroke-dashoffset: 24;
+	}
+	100% {
+		stroke-dashoffset: 0;
+	}
+}
+
+@keyframes particle-burst {
+	0% {
+		transform: translate(0, 0) scale(1);
+		opacity: 1;
+	}
+	100% {
+		transform: translate(var(--tx), var(--ty)) scale(0);
+		opacity: 0;
+	}
+}
+
+@keyframes ring-expand {
+	0% {
+		transform: scale(0.5);
+		opacity: 1;
+	}
+	100% {
+		transform: scale(2);
+		opacity: 0;
+	}
+}
+
+@keyframes shimmer {
+	0% {
+		background-position: -200% 0;
+	}
+	100% {
+		background-position: 200% 0;
+	}
+}
+
+.animate-success-burst {
+	animation: success-burst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-checkmark {
+	stroke-dasharray: 24;
+	stroke-dashoffset: 24;
+	animation: checkmark-draw 0.4s ease-out 0.2s forwards;
+}
+
+.animate-ring-expand {
+	animation: ring-expand 0.6s ease-out forwards;
+}
+
+.animate-shimmer {
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(0, 255, 136, 0.4) 50%,
+		transparent 100%
+	);
+	background-size: 200% 100%;
+	animation: shimmer 1.5s ease-in-out infinite;
 }
 
 @keyframes slide-in-right {

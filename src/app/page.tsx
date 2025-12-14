@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createWalletClient, custom, publicActions } from "viem";
 import { baseSepolia, base } from "viem/chains";
 import { preparePaymentHeader, signPaymentHeader } from "x402/client";
@@ -11,12 +11,12 @@ import {
   useRecentColors,
 } from "./_components/color-picker";
 import { PixelCanvas } from "./_components/pixel-canvas";
-import { PixelPanel } from "./_components/pixel-panel";
+import { PixelPanel, type PaintRequest } from "./_components/pixel-panel";
 import {
   QuickColorPicker,
   useHasSuccessfulTransaction,
 } from "./_components/quick-color-picker";
-import { StatusIndicator } from "./_components/status-indicator";
+import { StatusIndicator, type PaymentStatus } from "./_components/status-indicator";
 
 interface SelectedPixel {
   x: number;
@@ -40,7 +40,8 @@ export default function HomePage() {
   );
   // Auto paint state
   const [autoPaint, setAutoPaint] = useState(false);
-  const [isAutoPainting, setIsAutoPainting] = useState(false);
+  const [autoPaintStatus, setAutoPaintStatus] = useState<PaymentStatus>("idle");
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Wallet and auth state
   const { authenticated } = usePrivy();
@@ -57,22 +58,41 @@ export default function HomePage() {
   const showAutoPaint = authenticated && !!walletAddress && hasSuccessfulTx;
 
   /**
+   * Cancel ongoing auto-paint operation
+   */
+  const handleCancelAutoPaint = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setAutoPaintStatus("idle");
+  }, []);
+
+  /**
    * Auto-paint: directly send payment without modal
    */
   const handleAutoPaint = useCallback(
     async (pixel: SelectedPixel) => {
       if (!walletAddress || !activeWallet) return;
 
-      setIsAutoPainting(true);
+      // Create abort controller for this operation
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      setAutoPaintStatus("preparing");
 
       try {
         const body = { x: pixel.x, y: pixel.y, color: selectedColor };
+
+        // Check if cancelled
+        if (abortController.signal.aborted) return;
 
         // 1. Get payment requirements (402 response)
         const res = await fetch("/api/pixel/paint", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
+          signal: abortController.signal,
         });
 
         if (res.status !== 402) {
@@ -84,6 +104,9 @@ export default function HomePage() {
         const requirements: PaymentRequirements = paymentData.accepts?.[0];
         if (!requirements) throw new Error("No payment options available");
 
+        // Check if cancelled
+        if (abortController.signal.aborted) return;
+
         // 2. Switch chain if needed
         const chain = CHAINS[requirements.network as keyof typeof CHAINS];
         if (!chain) {
@@ -91,6 +114,9 @@ export default function HomePage() {
         }
 
         await activeWallet.switchChain(chain.id).catch(() => {});
+
+        // Check if cancelled
+        if (abortController.signal.aborted) return;
 
         // 3. Create wallet client from Privy provider
         const provider = await activeWallet.getEthereumProvider();
@@ -108,7 +134,11 @@ export default function HomePage() {
           transport: custom(provider),
         }).extend(publicActions);
 
-        // 4. Sign payment header
+        // Check if cancelled
+        if (abortController.signal.aborted) return;
+
+        // 4. Sign payment header - waiting for user authorization
+        setAutoPaintStatus("signing");
         const unsigned = preparePaymentHeader(
           walletAddress as `0x${string}`,
           X402_VERSION,
@@ -122,7 +152,11 @@ export default function HomePage() {
           unsigned
         );
 
-        // 5. Submit with payment
+        // Check if cancelled after signing
+        if (abortController.signal.aborted) return;
+
+        // 5. Submit with payment - now painting
+        setAutoPaintStatus("submitting");
         const payRes = await fetch("/api/pixel/paint", {
           method: "POST",
           headers: {
@@ -130,6 +164,7 @@ export default function HomePage() {
             "X-PAYMENT": paymentHeader,
           },
           body: JSON.stringify(body),
+          signal: abortController.signal,
         });
 
         const result = await payRes.json().catch(() => ({}));
@@ -138,15 +173,40 @@ export default function HomePage() {
           throw new Error(result.error ?? result.reason ?? "Payment failed");
         }
 
-        // Success - update recent colors (UI updates via Supabase real-time)
+        // Success - show success animation
+        setAutoPaintStatus("success");
         addRecentColor(selectedColor);
         markSuccessfulTransaction();
-      } catch (err) {
+
+        // Reset to idle after success animation
+        setTimeout(() => setAutoPaintStatus("idle"), 2000);
+      } catch (err: unknown) {
+        // Handle cancellation gracefully
+        if (err instanceof Error && err.name === "AbortError") {
+          console.log("[Auto Paint] Cancelled by user");
+          return;
+        }
+
+        // Handle wallet rejection gracefully (user denied signature)
+        const errorMessage = err instanceof Error ? err.message.toLowerCase() : "";
+        if (
+          errorMessage.includes("rejected") ||
+          errorMessage.includes("denied") ||
+          errorMessage.includes("cancelled") ||
+          errorMessage.includes("canceled") ||
+          errorMessage.includes("user refused")
+        ) {
+          console.log("[Auto Paint] User rejected transaction");
+          setAutoPaintStatus("idle");
+          return;
+        }
+
         console.error("[Auto Paint] Error:", err);
-        // On error, fall back to opening the modal
+        setAutoPaintStatus("idle");
+        // On other errors, fall back to opening the modal
         setSelectedPixel(pixel);
       } finally {
-        setIsAutoPainting(false);
+        abortControllerRef.current = null;
       }
     },
     [
@@ -176,6 +236,45 @@ export default function HomePage() {
     markSuccessfulTransaction();
   }, [markSuccessfulTransaction]);
 
+  /**
+   * Handle paint submission from modal (after authorization)
+   * Shows "Painting..." and "Painted!" via StatusIndicator
+   */
+  const handlePaintStart = useCallback(
+    async (request: PaintRequest) => {
+      setAutoPaintStatus("submitting");
+
+      try {
+        const payRes = await fetch("/api/pixel/paint", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-PAYMENT": request.paymentHeader,
+          },
+          body: JSON.stringify(request.body),
+        });
+
+        const result = await payRes.json().catch(() => ({}));
+
+        if (!payRes.ok) {
+          throw new Error(result.error ?? result.reason ?? "Payment failed");
+        }
+
+        // Success
+        setAutoPaintStatus("success");
+        addRecentColor(request.selectedColor);
+        markSuccessfulTransaction();
+
+        // Reset after success animation
+        setTimeout(() => setAutoPaintStatus("idle"), 2000);
+      } catch (err) {
+        console.error("[Paint] Submission error:", err);
+        setAutoPaintStatus("idle");
+      }
+    },
+    [addRecentColor, markSuccessfulTransaction]
+  );
+
   return (
     <>
       {/* Full height canvas */}
@@ -186,8 +285,12 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Status indicator - shows loader when pending, user count otherwise */}
-      <StatusIndicator isPending={isAutoPainting} />
+      {/* Status indicator - shows loader with differentiated states */}
+      <StatusIndicator
+        status={autoPaintStatus}
+        selectedColor={selectedColor}
+        onCancel={handleCancelAutoPaint}
+      />
 
       {/* Quick color picker overlay - hidden when modal is open */}
       {!selectedPixel && (
@@ -207,7 +310,11 @@ export default function HomePage() {
           onClose={() => setSelectedPixel(null)}
           onColorChange={setSelectedColor}
           onSuccess={handlePaintSuccess}
+          onPaintStart={handlePaintStart}
           pixel={selectedPixel}
+          autoPaint={autoPaint}
+          onAutoPaintChange={setAutoPaint}
+          showAutoPaint={showAutoPaint}
         />
       )}
     </>
