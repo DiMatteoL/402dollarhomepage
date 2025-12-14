@@ -6,45 +6,26 @@ import { createWalletClient, custom, publicActions } from "viem";
 import { baseSepolia, base } from "viem/chains";
 import { preparePaymentHeader, signPaymentHeader } from "x402/client";
 import type { PaymentRequirements } from "x402/types";
-import { FullColorPicker, useRecentColors } from "./color-picker";
 import { useUsdcBalance, getNetworkName } from "~/lib/use-usdc-balance";
+import type { PendingPixel } from "~/lib/use-pending-pixels";
 
-interface PixelInfo {
-  x: number;
-  y: number;
-  color: string;
-  price: number;
-  owner: string | null;
-  updateCount: number;
-}
-
-interface PaintRequest {
-  body: { x: number; y: number; color: string };
-  paymentHeader: string;
-  pixel: PixelInfo;
-  selectedColor: string;
-}
-
-interface PixelPanelProps {
-  pixel: PixelInfo | null;
+interface ClaimModalProps {
+  pendingPixels: Map<string, PendingPixel>;
+  totalPrice: number;
   onClose: () => void;
-  onSuccess: (pixel: PixelInfo) => void;
-  onPaintStart?: (request: PaintRequest) => void;
-  initialColor?: string;
-  onColorChange?: (color: string) => void;
-  // Auto-paint props
-  autoPaint?: boolean;
-  onAutoPaintChange?: (enabled: boolean) => void;
-  showAutoPaint?: boolean;
+  onSuccess: () => void;
 }
 
-export type { PaintRequest };
-
-type PaymentState = "idle" | "preparing" | "signing" | "submitting" | "success" | "error";
+type PaymentState =
+  | "idle"
+  | "preparing"
+  | "signing"
+  | "submitting"
+  | "success"
+  | "error";
 
 const X402_VERSION = 1;
 const CHAINS = { "base-sepolia": baseSepolia, base } as const;
-const MAX_CLAIMS = 10; // Maximum number of times a pixel can be claimed
 
 // Warning icon component
 function WarningIcon({ className = "" }: { className?: string }) {
@@ -66,7 +47,6 @@ function WalletDisconnected({
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4">
       <div className="flex items-start gap-4">
-        {/* USDC on Base logo */}
         <img
           src="/usdc_base.png"
           alt="USDC on Base"
@@ -77,7 +57,7 @@ function WalletDisconnected({
           <h3 className="font-semibold text-sm text-[var(--color-text-primary)] mb-1">
             {isLinkMode
               ? "Link a wallet to continue"
-              : "Connect to paint your first pixel"}
+              : "Connect to claim your pixels"}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
             Pixels are paid with{" "}
@@ -123,7 +103,6 @@ function WalletConnected({
 
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-3">
-      {/* Wallet info grid */}
       <div className="space-y-2 text-sm">
         {/* Wallet address row */}
         <div className="flex items-center justify-between">
@@ -165,7 +144,6 @@ function WalletConnected({
             {hasInsufficientBalance && (
               <div className="group relative">
                 <WarningIcon className="h-4 w-4 text-[var(--color-accent-orange)] cursor-help" />
-                {/* Tooltip */}
                 <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50">
                   <div className="w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 shadow-xl text-xs">
                     <p className="font-semibold text-[var(--color-accent-orange)] mb-1">
@@ -181,16 +159,7 @@ function WalletConnected({
                       >
                         Coinbase
                       </a>{" "}
-                      or bridge from another chain using{" "}
-                      <a
-                        href="https://bridge.base.org/"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[var(--color-accent-cyan)] hover:underline"
-                      >
-                        Base Bridge
-                      </a>
-                      .
+                      or bridge from another chain.
                     </p>
                   </div>
                 </div>
@@ -201,7 +170,7 @@ function WalletConnected({
 
         {/* Amount row */}
         <div className="flex items-center justify-between">
-          <span className="text-[var(--color-text-muted)]">Charged</span>
+          <span className="text-[var(--color-text-muted)]">Total</span>
           <span className="font-mono text-[var(--color-text-primary)]">
             ${requiredAmount}{" "}
             <span className="text-[var(--color-text-muted)]">USDC</span>
@@ -221,25 +190,16 @@ function WalletConnected({
   );
 }
 
-export function PixelPanel({
-  pixel,
+export function ClaimModal({
+  pendingPixels,
+  totalPrice,
   onClose,
   onSuccess,
-  onPaintStart,
-  initialColor,
-  onColorChange,
-  autoPaint = false,
-  onAutoPaintChange,
-  showAutoPaint = false,
-}: PixelPanelProps) {
+}: ClaimModalProps) {
   const { ready: privyReady, authenticated, login, logout } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
   const { linkWallet } = useLinkAccount();
-  const { addRecentColor } = useRecentColors();
 
-  const [selectedColor, setSelectedColor] = useState(
-    initialColor ?? (pixel?.updateCount ? pixel.color : "#1d4ed8")
-  );
   const [paymentState, setPaymentState] = useState<PaymentState>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -250,20 +210,10 @@ export function PixelPanel({
   // Fetch USDC balance
   const { balance, isLoading: balanceLoading } = useUsdcBalance(walletAddress);
 
-  // Sync with external color changes
-  useEffect(() => {
-    if (initialColor) {
-      setSelectedColor(initialColor);
-    }
-  }, [initialColor]);
+  const pixelCount = pendingPixels.size;
+  const priceString = totalPrice.toFixed(2);
 
-  // Notify parent of color changes
-  const handleColorChange = (color: string) => {
-    setSelectedColor(color);
-    onColorChange?.(color);
-  };
-
-  // Global ESC key handler - only when not processing
+  // Global ESC key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && paymentState === "idle") {
@@ -274,7 +224,7 @@ export function PixelPanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, paymentState]);
 
-  // Cancel handler - resets state and closes
+  // Cancel handler
   const handleCancel = useCallback(() => {
     setPaymentState("idle");
     setError(null);
@@ -282,10 +232,10 @@ export function PixelPanel({
   }, [onClose]);
 
   /**
-   * Handle the x402 payment flow
+   * Handle the x402 batch payment flow
    */
-  const handlePaint = useCallback(async () => {
-    if (!pixel || !walletAddress || !activeWallet) {
+  const handleClaim = useCallback(async () => {
+    if (!walletAddress || !activeWallet || pendingPixels.size === 0) {
       setError("Please connect your wallet first");
       return;
     }
@@ -294,10 +244,16 @@ export function PixelPanel({
     setPaymentState("preparing");
 
     try {
-      const body = { x: pixel.x, y: pixel.y, color: selectedColor };
+      // Build the batch request body
+      const pixelsArray = Array.from(pendingPixels.values()).map((p) => ({
+        x: p.x,
+        y: p.y,
+        color: p.newColor,
+      }));
+      const body = { pixels: pixelsArray };
 
       // 1. Get payment requirements (402 response)
-      const res = await fetch("/api/pixel/paint", {
+      const res = await fetch("/api/pixel/paint-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -309,7 +265,7 @@ export function PixelPanel({
       }
 
       const paymentData = await res.json();
-      console.log("[x402] Payment requirements:", paymentData);
+      console.log("[x402-batch] Payment requirements:", paymentData);
 
       const requirements: PaymentRequirements = paymentData.accepts?.[0];
       if (!requirements) throw new Error("No payment options available");
@@ -320,27 +276,14 @@ export function PixelPanel({
         throw new Error(`Unsupported network: ${requirements.network}`);
       }
 
-      console.log("[x402] Switching to chain:", chain.name, chain.id);
-      await activeWallet.switchChain(chain.id).catch((e) => {
-        console.warn("[x402] Chain switch failed:", e);
-      });
+      await activeWallet.switchChain(chain.id).catch(() => {});
 
       // 3. Create wallet client from Privy provider
       const provider = await activeWallet.getEthereumProvider();
-
-      // Verify provider chain
       const providerChainId = await provider.request({ method: "eth_chainId" });
-      console.log(
-        "[x402] Provider chainId:",
-        providerChainId,
-        "Expected:",
-        chain.id
-      );
 
       if (parseInt(providerChainId as string, 16) !== chain.id) {
-        throw new Error(
-          `Wallet is on wrong chain. Expected ${chain.id}, got ${providerChainId}`
-        );
+        throw new Error(`Wallet is on wrong chain`);
       }
 
       const walletClient = createWalletClient({
@@ -349,18 +292,12 @@ export function PixelPanel({
         transport: custom(provider),
       }).extend(publicActions);
 
-      // 4. Sign payment header - waiting for user authorization
+      // 4. Sign payment header
       setPaymentState("signing");
-      console.log("[x402] Wallet type:", activeWallet.walletClientType);
-      console.log("[x402] Preparing payment header for:", walletAddress);
       const unsigned = preparePaymentHeader(
         walletAddress as `0x${string}`,
         X402_VERSION,
         requirements
-      );
-      console.log(
-        "[x402] Unsigned payload:",
-        JSON.stringify(unsigned, null, 2)
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -369,62 +306,37 @@ export function PixelPanel({
         requirements,
         unsigned
       );
-      console.log(
-        "[x402] Payment header signed, length:",
-        paymentHeader.length
-      );
 
-      // Debug: decode the signed payload
-      try {
-        const decoded = JSON.parse(atob(paymentHeader));
-        console.log("[x402] Signed payload:", JSON.stringify(decoded, null, 2));
-      } catch {
-        console.log("[x402] Could not decode payment header");
+      // 5. Submit with payment
+      setPaymentState("submitting");
+      const payRes = await fetch("/api/pixel/paint-batch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-PAYMENT": paymentHeader,
+        },
+        body: JSON.stringify(body),
+      });
+
+      const result = await payRes.json().catch(() => ({}));
+      console.log("[x402-batch] Payment response:", payRes.status, result);
+
+      if (!payRes.ok) {
+        throw new Error(result.error ?? result.reason ?? "Payment failed");
       }
 
-      // 5. Close modal and hand off to parent for submission
-      // The "painting" and "success" states will be shown via the top status indicator
-      onClose();
+      // Success!
+      setPaymentState("success");
 
-      if (onPaintStart) {
-        // Parent will handle submission and show status indicator
-        onPaintStart({
-          body,
-          paymentHeader,
-          pixel,
-          selectedColor,
-        });
-      } else {
-        // Fallback: handle submission here if no onPaintStart provided
-        const payRes = await fetch("/api/pixel/paint", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-PAYMENT": paymentHeader,
-          },
-          body: JSON.stringify(body),
-        });
-
-        const result = await payRes.json().catch(() => ({}));
-        console.log("[x402] Payment response:", payRes.status, result);
-
-        if (!payRes.ok) {
-          throw new Error(result.error ?? result.reason ?? "Payment failed");
-        }
-
-        // Add to recent colors on successful paint
-        addRecentColor(selectedColor);
-        onSuccess({
-          ...pixel,
-          color: selectedColor,
-          owner: walletAddress,
-          price: result.pixel?.price ?? pixel.price,
-          updateCount: result.pixel?.updateCount ?? pixel.updateCount + 1,
-        });
-      }
+      // Close modal and notify parent after a brief delay
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1500);
     } catch (err: unknown) {
-      // Handle wallet rejection gracefully (user denied signature)
-      const errorMessage = err instanceof Error ? err.message.toLowerCase() : "";
+      // Handle wallet rejection gracefully
+      const errorMessage =
+        err instanceof Error ? err.message.toLowerCase() : "";
       if (
         errorMessage.includes("rejected") ||
         errorMessage.includes("denied") ||
@@ -432,52 +344,42 @@ export function PixelPanel({
         errorMessage.includes("canceled") ||
         errorMessage.includes("user refused")
       ) {
-        console.log("[x402] User rejected transaction");
+        console.log("[x402-batch] User rejected transaction");
         setPaymentState("idle");
         return;
       }
 
-      console.error("[x402] Payment error:", err);
+      console.error("[x402-batch] Payment error:", err);
       setError(err instanceof Error ? err.message : "Payment failed");
       setPaymentState("error");
     }
-  }, [
-    pixel,
-    selectedColor,
-    walletAddress,
-    activeWallet,
-    onSuccess,
-    onClose,
-    onPaintStart,
-    addRecentColor,
-  ]);
+  }, [pendingPixels, walletAddress, activeWallet, onSuccess, onClose]);
 
-  if (!pixel) return null;
-
-  const nextPrice = (0.01 * (pixel.updateCount + 1)).toFixed(2);
   const isWalletConnected = authenticated && !!walletAddress;
   const balanceNum = balance ? parseFloat(balance) : 0;
   const hasInsufficientBalance =
-    !balanceLoading && balance !== null && balanceNum < parseFloat(nextPrice);
-  const hasReachedMaxClaims = pixel.updateCount >= MAX_CLAIMS;
-  const isProcessing = paymentState === "preparing" || paymentState === "signing";
+    !balanceLoading && balance !== null && balanceNum < totalPrice;
+  const isProcessing =
+    paymentState === "preparing" ||
+    paymentState === "signing" ||
+    paymentState === "submitting";
 
   return (
     <div
-      aria-labelledby="pixel-panel-title"
+      aria-labelledby="claim-modal-title"
       aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
     >
       {/* Backdrop */}
       <button
-        aria-label="Close panel"
+        aria-label="Close modal"
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={handleCancel}
         type="button"
       />
 
-      {/* Panel */}
+      {/* Modal */}
       <div className="relative w-full max-w-md animate-fade-in rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-5 shadow-2xl">
         {/* Close button */}
         <button
@@ -491,62 +393,49 @@ export function PixelPanel({
 
         {/* Header */}
         <div className="mb-4">
-          <h2 className="font-bold text-lg" id="pixel-panel-title">
-            Paint Pixel{" "}
-            <span className="font-mono text-[var(--color-accent-cyan)]">
-              ({pixel.x}, {pixel.y})
+          <h2 className="font-bold text-lg" id="claim-modal-title">
+            Claim{" "}
+            <span className="text-[var(--color-accent-cyan)]">
+              {pixelCount} pixel{pixelCount !== 1 ? "s" : ""}
             </span>
           </h2>
-          <div className="mt-0.5 text-xs">
-            <span
-              className={`font-mono ${
-                pixel.updateCount >= MAX_CLAIMS
-                  ? "text-[var(--color-accent-orange)]"
-                  : "text-[var(--color-text-muted)]"
-              }`}
-            >
-              {pixel.updateCount === 0
-                ? "Unclaimed"
-                : `Claimed ${pixel.updateCount}/${MAX_CLAIMS} times`}
-            </span>
-          </div>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            Your painted pixels will be saved to the canvas
+          </p>
         </div>
 
-        {/* Color picker */}
+        {/* Pixel preview - show a sample of colors */}
         <div className="mb-4">
-          <FullColorPicker
-            selectedColor={selectedColor}
-            onColorSelect={handleColorChange}
-          />
+          <div className="flex items-center gap-2 flex-wrap">
+            {Array.from(pendingPixels.values())
+              .slice(0, 10)
+              .map((p) => (
+                <div
+                  key={`${p.x}-${p.y}`}
+                  className="h-6 w-6 rounded border border-[var(--color-border)]"
+                  style={{ backgroundColor: p.newColor }}
+                  title={`(${p.x}, ${p.y})`}
+                />
+              ))}
+            {pendingPixels.size > 10 && (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                +{pendingPixels.size - 10} more
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Preview */}
-        <div className="mb-4 flex items-center gap-3">
-          <div className="text-[var(--color-text-muted)] text-xs">Preview</div>
-          <div className="flex items-center gap-2">
-            <div
-              className="h-6 w-6 rounded border border-[var(--color-border)]"
-              style={{ backgroundColor: pixel.color }}
-              title={`Current: ${pixel.color}`}
-            />
-            <span
-              aria-hidden="true"
-              className="text-[var(--color-text-muted)] text-xs"
-            >
-              →
+        {/* Price summary */}
+        <div className="mb-4 rounded-lg border border-[var(--color-accent-green)]/30 bg-[var(--color-accent-green)]/5 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-[var(--color-text-secondary)]">
+              Total Cost
             </span>
-            <div
-              className="h-6 w-6 rounded border-2 border-[var(--color-accent-cyan)]"
-              style={{ backgroundColor: selectedColor }}
-              title={`New: ${selectedColor}`}
-            />
-          </div>
-          <div className="ml-auto text-right">
-            <span className="font-bold text-lg text-[var(--color-accent-green)]">
-              ${nextPrice}
-            </span>
-            <span className="ml-1 text-[var(--color-text-muted)] text-xs">
-              USDC
+            <span className="font-bold text-xl text-[var(--color-accent-green)]">
+              ${priceString}{" "}
+              <span className="text-sm font-normal text-[var(--color-text-muted)]">
+                USDC
+              </span>
             </span>
           </div>
         </div>
@@ -554,15 +443,12 @@ export function PixelPanel({
         {/* Wallet section */}
         <div className="mb-4">
           {!privyReady ? (
-            // Privy SDK still initializing
             <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
             </div>
           ) : !authenticated ? (
-            // User not logged in - show connect wallet
             <WalletDisconnected onConnect={login} />
           ) : !walletsReady ? (
-            // User authenticated but wallets still loading
             <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
               <div className="flex items-center gap-2">
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
@@ -572,30 +458,17 @@ export function PixelPanel({
               </div>
             </div>
           ) : isWalletConnected ? (
-            // Wallet connected
             <WalletConnected
               walletAddress={walletAddress}
               balance={balance}
               balanceLoading={balanceLoading}
-              requiredAmount={nextPrice}
+              requiredAmount={priceString}
               onDisconnect={logout}
             />
           ) : (
-            // Authenticated but no wallet - offer to link one
             <WalletDisconnected onConnect={linkWallet} isLinkMode />
           )}
         </div>
-
-        {/* Max claims warning */}
-        {hasReachedMaxClaims && (
-          <div
-            className="mb-3 rounded-lg border border-[var(--color-accent-orange)] bg-[var(--color-accent-orange)]/10 px-3 py-2 text-[var(--color-accent-orange)] text-xs"
-            role="alert"
-          >
-            This pixel has reached the maximum of {MAX_CLAIMS} claims and can no
-            longer be painted.
-          </div>
-        )}
 
         {/* Error message */}
         {error && (
@@ -607,33 +480,37 @@ export function PixelPanel({
           </div>
         )}
 
-        {/* Payment status - only shows preparing/signing (submitting/success are shown via top indicator) */}
-        {(paymentState === "preparing" || paymentState === "signing") && (
+        {/* Payment status */}
+        {isProcessing && (
           <output className="mb-3 block rounded-lg px-3 py-2.5 bg-[var(--color-bg-tertiary)]">
             <div className="flex items-center gap-3">
-              {paymentState === "signing" ? (
-                <div className="relative flex h-6 w-6 items-center justify-center">
-                  <div className="absolute inset-0 rounded-full border-2 border-[var(--color-accent-magenta)]/30" />
-                  <div className="absolute inset-0 rounded-full border-2 border-[var(--color-accent-magenta)] border-t-transparent animate-spin" />
-                  <svg className="h-3 w-3 text-[var(--color-accent-magenta)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                    <polyline points="10 17 15 12 10 7" />
-                    <line x1="15" y1="12" x2="3" y2="12" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="h-6 w-6 flex items-center justify-center">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--color-text-muted)] border-t-transparent" />
-                </div>
-              )}
+              <div className="relative flex h-6 w-6 items-center justify-center">
+                <div
+                  className={`absolute inset-0 rounded-full border-2 ${
+                    paymentState === "signing"
+                      ? "border-[var(--color-accent-magenta)]/30"
+                      : "border-[var(--color-accent-cyan)]/30"
+                  }`}
+                />
+                <div
+                  className={`absolute inset-0 rounded-full border-2 border-t-transparent animate-spin ${
+                    paymentState === "signing"
+                      ? "border-[var(--color-accent-magenta)]"
+                      : "border-[var(--color-accent-cyan)]"
+                  }`}
+                />
+              </div>
               <div className="flex-1">
-                <span className={`text-sm font-medium ${
-                  paymentState === "signing"
-                    ? "text-[var(--color-accent-magenta)]"
-                    : "text-[var(--color-text-secondary)]"
-                }`}>
+                <span
+                  className={`text-sm font-medium ${
+                    paymentState === "signing"
+                      ? "text-[var(--color-accent-magenta)]"
+                      : "text-[var(--color-text-secondary)]"
+                  }`}
+                >
                   {paymentState === "preparing" && "Preparing..."}
                   {paymentState === "signing" && "Authorizing..."}
+                  {paymentState === "submitting" && "Claiming pixels..."}
                 </span>
                 {paymentState === "signing" && (
                   <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
@@ -645,73 +522,56 @@ export function PixelPanel({
           </output>
         )}
 
-        {/* Auto-paint toggle - only show for eligible users */}
-        {isWalletConnected && showAutoPaint && (
-          <label className="mb-3 flex cursor-pointer items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2.5 transition-colors hover:border-[var(--color-border-hover)]">
-            <input
-              type="checkbox"
-              checked={autoPaint}
-              onChange={(e) => onAutoPaintChange?.(e.target.checked)}
-              className="h-4 w-4 rounded border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[var(--color-accent-cyan)] focus:ring-[var(--color-accent-cyan)] focus:ring-offset-0"
-            />
-            <div className="flex-1">
-              <span className="text-sm text-[var(--color-text-primary)]">
-                Auto-paint on click
+        {/* Success state */}
+        {paymentState === "success" && (
+          <output className="mb-3 block rounded-lg px-3 py-2.5 bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/30">
+            <div className="flex items-center gap-3">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent-green)]">
+                <svg
+                  className="h-4 w-4 text-black"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-[var(--color-accent-green)]">
+                Pixels claimed successfully!
               </span>
-              <p className="text-[10px] text-[var(--color-text-muted)]">
-                Skip this modal and paint directly
-              </p>
             </div>
-            <svg
-              className="h-4 w-4 text-[var(--color-accent-cyan)]"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </label>
+          </output>
         )}
 
-        {/* Action buttons - only show when wallet is connected */}
-        {isWalletConnected && (
+        {/* Action buttons */}
+        {isWalletConnected && paymentState !== "success" && (
           <div className="flex gap-2">
             <button
               className="btn-secondary flex-1 py-2.5 text-sm"
               onClick={handleCancel}
+              disabled={isProcessing}
               type="button"
             >
               Cancel
             </button>
             <button
               className="btn-primary flex-1 py-2.5 text-sm"
-              disabled={
-                isProcessing ||
-                hasInsufficientBalance ||
-                hasReachedMaxClaims
-              }
-              onClick={handlePaint}
+              disabled={isProcessing || hasInsufficientBalance}
+              onClick={handleClaim}
               type="button"
-              title={
-                hasReachedMaxClaims
-                  ? "This pixel has reached the maximum number of claims"
-                  : hasInsufficientBalance
-                  ? "Insufficient USDC balance"
-                  : undefined
-              }
             >
               {isProcessing
                 ? paymentState === "signing"
                   ? "Authorizing..."
+                  : paymentState === "submitting"
+                  ? "Claiming..."
                   : "Preparing..."
-                : hasReachedMaxClaims
-                ? "Max Claims Reached"
                 : hasInsufficientBalance
                 ? "Insufficient Balance"
-                : `Pay $${nextPrice}`}
+                : `Pay $${priceString}`}
             </button>
           </div>
         )}

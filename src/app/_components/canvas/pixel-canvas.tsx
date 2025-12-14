@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 import { subscribeToPixelUpdates } from "~/lib/supabase";
 import { useBinaryCanvas, type CanvasPixel } from "~/lib/use-binary-canvas";
+import type { PendingPixel } from "~/lib/use-pending-pixels";
 import { CanvasControls } from "./canvas-controls";
 import { HoveredPixelInfo, LoadingOverlay, ZoomIndicator } from "./canvas-info";
 import { CANVAS_SIZE, COLORS } from "./types";
@@ -23,16 +24,21 @@ const {
 // Threshold in pixels - if mouse moves more than this, it's a pan not a click
 const PAN_THRESHOLD = 5;
 
+// Pending pixel indicator color
+const PENDING_INDICATOR_COLOR = "#00ffff";
+
 interface PixelCanvasProps {
-  onPixelSelect: (pixel: {
+  /** Called when user clicks a pixel - provides data needed to paint locally */
+  onPixelPaint: (pixel: {
     x: number;
     y: number;
-    color: string;
-    price: number;
-    owner: string | null;
+    currentColor: string;
     updateCount: number;
   }) => void;
+  /** Currently selected color for painting */
   hoverColor?: string;
+  /** Pixels that have been painted locally but not yet claimed */
+  pendingPixels?: Map<string, PendingPixel>;
 }
 
 /**
@@ -40,17 +46,18 @@ interface PixelCanvasProps {
  * Uses binary format for efficient initial load
  */
 function CanvasContent({
-  onPixelSelect,
+  onPixelPaint,
   hoveredPixel,
   setHoveredPixel,
   scale,
   hoverColor,
   onHoverData,
   pixels,
+  pendingPixels,
   isLoading,
   updatePixel,
 }: {
-  onPixelSelect: PixelCanvasProps["onPixelSelect"];
+  onPixelPaint: PixelCanvasProps["onPixelPaint"];
   hoveredPixel: { x: number; y: number } | null;
   setHoveredPixel: (pixel: { x: number; y: number } | null) => void;
   scale: number;
@@ -59,6 +66,7 @@ function CanvasContent({
     data: { mouseX: number; mouseY: number; updateCount: number } | null
   ) => void;
   pixels: Map<string, CanvasPixel>;
+  pendingPixels: Map<string, PendingPixel>;
   isLoading: boolean;
   updatePixel: (
     x: number,
@@ -82,6 +90,7 @@ function CanvasContent({
   const scaleRef = useRef(scale);
   const hoveredPixelRef = useRef(hoveredPixel);
   const hoverColorRef = useRef(hoverColor);
+  const pendingPixelsRef = useRef(pendingPixels);
 
   // Keep refs in sync
   useEffect(() => {
@@ -96,6 +105,10 @@ function CanvasContent({
     hoverColorRef.current = hoverColor;
   }, [hoverColor]);
 
+  useEffect(() => {
+    pendingPixelsRef.current = pendingPixels;
+  }, [pendingPixels]);
+
   /**
    * Main render function - uses refs so it doesn't need to be recreated
    */
@@ -107,6 +120,7 @@ function CanvasContent({
     const currentScale = scaleRef.current;
     const currentHoveredPixel = hoveredPixelRef.current;
     const currentHoverColor = hoverColorRef.current;
+    const currentPendingPixels = pendingPixelsRef.current;
     const dpr = window.devicePixelRatio || 1;
 
     // Set canvas size to match the logical canvas size
@@ -143,8 +157,11 @@ function CanvasContent({
       }
     }
 
-    // Draw all pixels
+    // Draw all committed pixels
     for (const [key, pixel] of pixelDataRef.current) {
+      // Skip if this pixel has a pending change
+      if (currentPendingPixels.has(key)) continue;
+
       const [xStr, yStr] = key.split("-");
       const x = parseInt(xStr ?? "0", 10);
       const y = parseInt(yStr ?? "0", 10);
@@ -152,19 +169,42 @@ function CanvasContent({
       ctx.fillRect(x, y, 1, 1);
     }
 
+    // Draw pending pixels with their new colors and indicator
+    for (const [key, pending] of currentPendingPixels) {
+      const [xStr, yStr] = key.split("-");
+      const x = parseInt(xStr ?? "0", 10);
+      const y = parseInt(yStr ?? "0", 10);
+
+      // Fill with the new color
+      ctx.fillStyle = pending.newColor;
+      ctx.fillRect(x, y, 1, 1);
+
+      // Draw a subtle indicator border for pending pixels (when zoomed in)
+      if (currentScale >= 2) {
+        ctx.strokeStyle = PENDING_INDICATOR_COLOR;
+        ctx.lineWidth = 1 / currentScale;
+        ctx.globalAlpha = 0.6;
+        ctx.strokeRect(x, y, 1, 1);
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // Draw hovered pixel with selected color preview
     if (currentHoveredPixel) {
+      const hoverKey = `${currentHoveredPixel.x}-${currentHoveredPixel.y}`;
+      const isPending = currentPendingPixels.has(hoverKey);
+
       // Fill pixel with selected color
       ctx.fillStyle = currentHoverColor;
       ctx.fillRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
 
       // Border around the pixel
-      ctx.strokeStyle = currentHoverColor;
+      ctx.strokeStyle = isPending ? PENDING_INDICATOR_COLOR : currentHoverColor;
       ctx.lineWidth = 2 / currentScale;
       ctx.strokeRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
 
       // Glow effect
-      ctx.shadowColor = currentHoverColor;
+      ctx.shadowColor = isPending ? PENDING_INDICATOR_COLOR : currentHoverColor;
       ctx.shadowBlur = 10 / currentScale;
       ctx.strokeRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
       ctx.shadowBlur = 0;
@@ -201,10 +241,10 @@ function CanvasContent({
     return unsubscribe;
   }, [renderCanvas, updatePixel]);
 
-  // Re-render on scale/hover/color changes
+  // Re-render on scale/hover/color/pending changes
   useEffect(() => {
     renderCanvas();
-  }, [renderCanvas, scale, hoveredPixel, hoverColor]);
+  }, [renderCanvas, scale, hoveredPixel, hoverColor, pendingPixels]);
 
   /**
    * Convert screen coordinates to pixel coordinates
@@ -244,11 +284,14 @@ function CanvasContent({
 
       // Report hover data for tooltip
       if (pixel && onHoverData) {
-        const pixelData = pixelDataRef.current.get(`${pixel.x}-${pixel.y}`);
+        const key = `${pixel.x}-${pixel.y}`;
+        // Check pending pixels first, then committed pixels
+        const pendingPixel = pendingPixelsRef.current.get(key);
+        const pixelData = pixelDataRef.current.get(key);
         onHoverData({
           mouseX: e.clientX,
           mouseY: e.clientY,
-          updateCount: pixelData?.updateCount ?? 0,
+          updateCount: pendingPixel?.updateCount ?? pixelData?.updateCount ?? 0,
         });
       } else if (onHoverData) {
         onHoverData(null);
@@ -268,17 +311,16 @@ function CanvasContent({
 
   const handleMouseUp = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      // Only select pixel if we weren't panning
+      // Only paint pixel if we weren't panning
       if (!isPanning.current && mouseDownPos.current) {
         const pixel = screenToPixel(e);
         if (pixel) {
-          const pixelData = pixelDataRef.current.get(`${pixel.x}-${pixel.y}`);
-          onPixelSelect({
+          const key = `${pixel.x}-${pixel.y}`;
+          const pixelData = pixelDataRef.current.get(key);
+          onPixelPaint({
             x: pixel.x,
             y: pixel.y,
-            color: pixelData?.color ?? "#1a1a2e",
-            price: 0.01 * ((pixelData?.updateCount ?? 0) + 1),
-            owner: null, // Binary format doesn't include owner
+            currentColor: pixelData?.color ?? "#1a1a2e",
             updateCount: pixelData?.updateCount ?? 0,
           });
         }
@@ -288,7 +330,7 @@ function CanvasContent({
       mouseDownPos.current = null;
       isPanning.current = false;
     },
-    [screenToPixel, onPixelSelect]
+    [screenToPixel, onPixelPaint]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -324,8 +366,9 @@ function CanvasContent({
  * Main PixelCanvas component with pan/zoom functionality
  */
 export function PixelCanvas({
-  onPixelSelect,
+  onPixelPaint,
   hoverColor = "#00ffff",
+  pendingPixels = new Map(),
 }: PixelCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredPixel, setHoveredPixel] = useState<{
@@ -424,11 +467,12 @@ export function PixelCanvas({
               <CanvasContent
                 hoveredPixel={hoveredPixel}
                 hoverColor={hoverColor}
-                onPixelSelect={onPixelSelect}
+                onPixelPaint={onPixelPaint}
                 scale={scale}
                 setHoveredPixel={setHoveredPixel}
                 onHoverData={setHoverData}
                 pixels={pixels}
+                pendingPixels={pendingPixels}
                 isLoading={isLoading}
                 updatePixel={updatePixel}
               />
