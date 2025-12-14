@@ -5,6 +5,9 @@ import { z } from "zod";
 import { db } from "~/server/db";
 import { payments, pixels } from "~/server/db/schema";
 
+// Extend timeout for payment settlement (Vercel Pro: up to 60s)
+export const maxDuration = 30;
+
 // x402 imports
 import {
   type PaymentPayload,
@@ -260,17 +263,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Settle the payment
-    const settleResult = await facilitator.settle(
-      paymentPayload,
-      paymentRequirements
-    );
+    // Settle the payment with retry logic for timeouts
+    let settleResult;
+    const maxRetries = 3;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[x402-batch] Settlement attempt ${attempt}/${maxRetries}`);
+        settleResult = await facilitator.settle(
+          paymentPayload,
+          paymentRequirements
+        );
+        break; // Success, exit retry loop
+      } catch (settleError) {
+        const errorMessage = settleError instanceof Error ? settleError.message : String(settleError);
+        console.error(`[x402-batch] Settlement attempt ${attempt} failed:`, errorMessage);
+        
+        // If it's a timeout or network error, retry
+        const isRetryable = errorMessage.includes('timeout') || 
+                           errorMessage.includes('504') || 
+                           errorMessage.includes('503') ||
+                           errorMessage.includes('ECONNRESET') ||
+                           errorMessage.includes('network');
+        
+        if (isRetryable && attempt < maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s
+          const delay = Math.pow(2, attempt - 1) * 1000;
+          console.log(`[x402-batch] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          // Final attempt failed or non-retryable error
+          return NextResponse.json(
+            {
+              error: "Payment settlement failed",
+              reason: `Settlement timed out after ${maxRetries} attempts. Please try again.`,
+            },
+            { status: 402 }
+          );
+        }
+      }
+    }
 
-    if (!settleResult.success) {
+    if (!settleResult || !settleResult.success) {
       return NextResponse.json(
         {
           error: "Payment settlement failed",
-          reason: settleResult.errorReason,
+          reason: settleResult?.errorReason ?? "Unknown error",
         },
         { status: 402 }
       );
