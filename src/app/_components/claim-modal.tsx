@@ -287,14 +287,28 @@ export function ClaimModal({
         throw new Error(`Unsupported network: ${requirements.network}`);
       }
 
-      await activeWallet.switchChain(chain.id).catch(() => {});
-
       // 3. Create wallet client from Privy provider
       const provider = await activeWallet.getEthereumProvider();
-      const providerChainId = await provider.request({ method: "eth_chainId" });
+      let providerChainId = await provider.request({ method: "eth_chainId" });
 
+      // If on wrong chain, attempt to switch
       if (parseInt(providerChainId as string, 16) !== chain.id) {
-        throw new Error(`Wallet is on wrong chain`);
+        try {
+          await activeWallet.switchChain(chain.id);
+          // Re-check chain after switch
+          providerChainId = await provider.request({ method: "eth_chainId" });
+        } catch (switchError) {
+          console.log(
+            "[x402-batch] Chain switch failed or was rejected:",
+            switchError
+          );
+          // On mobile, user may need to switch manually in their wallet
+        }
+
+        // Final check - if still on wrong chain, show helpful error
+        if (parseInt(providerChainId as string, 16) !== chain.id) {
+          throw new Error(`Please switch your wallet to Base and try again`);
+        }
       }
 
       const walletClient = createWalletClient({
@@ -483,7 +497,10 @@ export function ClaimModal({
         {nearMaxPixels.length > 0 && (
           <div className="mb-4 rounded-lg border border-[var(--color-accent-orange)]/30 bg-[var(--color-accent-orange)]/5 px-3 py-2">
             <p className="text-xs text-[var(--color-accent-orange)]">
-              ⚠️ {nearMaxPixels.length} pixel{nearMaxPixels.length !== 1 ? "s are" : " is"} at 9/10 claims — this will be the last time{nearMaxPixels.length !== 1 ? " they" : " it"} can be claimed!
+              ⚠️ {nearMaxPixels.length} pixel
+              {nearMaxPixels.length !== 1 ? "s are" : " is"} at 9/10 claims —
+              this will be the last time
+              {nearMaxPixels.length !== 1 ? " they" : " it"} can be claimed!
             </p>
           </div>
         )}
