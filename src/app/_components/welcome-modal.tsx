@@ -135,13 +135,13 @@ function WelcomeModal({
             </div>
 
             {/* Image */}
-            <div className="group relative mb-6 overflow-hidden rounded-lg border border-[var(--color-border)]">
+            <div className="group relative mb-6 mx-auto max-w-sm overflow-hidden rounded-lg border border-[var(--color-border)]">
               <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-bg-primary)] via-transparent to-transparent opacity-60" />
               <Image
                 src="/milliondollarhomepage.png"
                 alt="The Million Dollar Homepage by Alex Tew"
-                width={1000}
-                height={1000}
+                width={500}
+                height={500}
                 className="h-auto w-full transition-transform duration-500 group-hover:scale-[1.02]"
                 priority
               />

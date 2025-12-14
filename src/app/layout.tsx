@@ -126,7 +126,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
-      <body className="min-h-screen overflow-hidden font-sans antialiased">
+      <head>
         {/* Hotjar Tracking Code for x402DollarHomepage */}
         <Script id="hotjar" strategy="afterInteractive">
           {`
@@ -140,6 +140,8 @@ export default function RootLayout({
             })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
           `}
         </Script>
+      </head>
+      <body className="min-h-screen overflow-hidden font-sans antialiased">
         <PreventBrowserZoom />
         <Privy>
           <TRPCReactProvider>
