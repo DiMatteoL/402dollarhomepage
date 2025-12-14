@@ -287,57 +287,41 @@ export function ClaimModal({
         throw new Error(`Unsupported network: ${requirements.network}`);
       }
 
-      // 3. Create wallet client from Privy provider
-      const provider = await activeWallet.getEthereumProvider();
-
-      // Helper to parse chain ID from various formats (hex string, number, etc.)
-      const parseChainId = (chainId: unknown): number => {
-        if (typeof chainId === "number") return chainId;
-        if (typeof chainId === "string") {
-          return chainId.startsWith("0x")
-            ? parseInt(chainId, 16)
-            : parseInt(chainId, 10);
-        }
-        return 0;
+      // 3. Check wallet chain using Privy's chainId (CAIP-2 format: "eip155:8453")
+      const getWalletChainId = (): number => {
+        const caip2 = activeWallet.chainId ?? ""; // e.g., "eip155:8453"
+        if (!caip2) return 0;
+        const parts = caip2.split(":");
+        return parts.length === 2 ? parseInt(parts[1] ?? "0", 10) : 0;
       };
 
-      let providerChainId = parseChainId(
-        await provider.request({ method: "eth_chainId" })
-      );
-
+      let walletChainId = getWalletChainId();
       console.log(
-        "[x402-batch] Expected chain:",
+        "[x402-batch] Expected:",
         chain.id,
-        "Provider chain:",
-        providerChainId
+        "Wallet:",
+        walletChainId,
+        "CAIP-2:",
+        activeWallet.chainId
       );
 
       // If on wrong chain, attempt to switch
-      if (providerChainId !== chain.id) {
+      if (walletChainId !== chain.id) {
         try {
           await activeWallet.switchChain(chain.id);
-          // Re-check chain after switch
-          providerChainId = parseChainId(
-            await provider.request({ method: "eth_chainId" })
-          );
-          console.log(
-            "[x402-batch] After switch, provider chain:",
-            providerChainId
-          );
+          walletChainId = getWalletChainId();
+          console.log("[x402-batch] After switch:", walletChainId);
         } catch (switchError) {
-          console.log(
-            "[x402-batch] Chain switch failed or was rejected:",
-            switchError
-          );
+          console.log("[x402-batch] Chain switch failed:", switchError);
         }
 
-        // Final check - if still on wrong chain, show helpful error
-        if (providerChainId !== chain.id) {
-          throw new Error(
-            `Please switch your wallet to Base (chain ${chain.id}, got ${providerChainId}) and try again`
-          );
+        if (walletChainId !== chain.id) {
+          throw new Error(`Please switch your wallet to Base and try again`);
         }
       }
+
+      // Get provider AFTER confirming chain (provider instances don't update after switchChain)
+      const provider = await activeWallet.getEthereumProvider();
 
       const walletClient = createWalletClient({
         account: walletAddress as `0x${string}`,
