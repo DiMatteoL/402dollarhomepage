@@ -126,34 +126,6 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
-      <head>
-        {/* Hotjar Tracking Code for x402DollarHomepage */}
-        <Script id="hotjar" strategy="afterInteractive">
-          {`
-            (function(h,o,t,j,a,r){
-              h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
-              h._hjSettings={hjid:6601163,hjsv:6};
-              a=o.getElementsByTagName('head')[0];
-              r=o.createElement('script');r.async=1;
-              r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
-              a.appendChild(r);
-            })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
-          `}
-        </Script>
-        {/* Google Analytics */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-46RJWFJTKT"
-          strategy="afterInteractive"
-        />
-        <Script id="google-analytics" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-46RJWFJTKT');
-          `}
-        </Script>
-      </head>
       <body className="min-h-screen overflow-hidden font-sans antialiased">
         <PreventBrowserZoom />
         <Privy>
@@ -165,6 +137,32 @@ export default function RootLayout({
           </TRPCReactProvider>
         </Privy>
       </body>
+      {/* Hotjar Tracking Code for x402DollarHomepage */}
+      <Script id="hotjar" strategy="afterInteractive">
+        {`
+            (function(h,o,t,j,a,r){
+              h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
+              h._hjSettings={hjid:6601163,hjsv:6};
+              a=o.getElementsByTagName('head')[0];
+              r=o.createElement('script');r.async=1;
+              r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+              a.appendChild(r);
+            })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+          `}
+      </Script>
+      {/* Google Analytics */}
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-46RJWFJTKT"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-46RJWFJTKT');
+          `}
+      </Script>
     </html>
   );
 }
