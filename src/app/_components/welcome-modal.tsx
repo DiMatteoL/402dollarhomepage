@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { Cookies } from "react-cookie-consent";
+import { COOKIE_CONSENT_EVENT } from "./analytics";
 
 const COOKIE_CONSENT_NAME = "x402-cookie-consent";
 
@@ -33,11 +34,14 @@ export function useWelcomeModal() {
 export function WelcomeModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasCheckedCookie, setHasCheckedCookie] = useState(false);
+  const [hasConsent, setHasConsent] = useState(false);
 
   // Check cookie consent on mount - show modal if not accepted
   useEffect(() => {
     const consent = Cookies.get(COOKIE_CONSENT_NAME);
-    if (consent !== "true") {
+    if (consent === "true") {
+      setHasConsent(true);
+    } else {
       setIsOpen(true);
     }
     setHasCheckedCookie(true);
@@ -53,9 +57,13 @@ export function WelcomeModalProvider({ children }: { children: ReactNode }) {
     // Set cookie consent
     if (acceptCookies === true) {
       Cookies.set(COOKIE_CONSENT_NAME, "true", { expires: 365 });
+      setHasConsent(true);
     } else if (acceptCookies === false) {
       Cookies.set(COOKIE_CONSENT_NAME, "false", { expires: 365 });
     }
+
+    // Dispatch custom event to notify analytics component
+    window.dispatchEvent(new Event(COOKIE_CONSENT_EVENT));
   }, []);
 
   // Close on escape key (treats as decline)
@@ -72,15 +80,19 @@ export function WelcomeModalProvider({ children }: { children: ReactNode }) {
   return (
     <WelcomeModalContext.Provider value={{ isOpen, openModal, closeModal }}>
       {children}
-      {hasCheckedCookie && isOpen && <WelcomeModal onClose={closeModal} />}
+      {hasCheckedCookie && isOpen && (
+        <WelcomeModal onClose={closeModal} hasConsent={hasConsent} />
+      )}
     </WelcomeModalContext.Provider>
   );
 }
 
 function WelcomeModal({
   onClose,
+  hasConsent,
 }: {
   onClose: (acceptCookies?: boolean) => void;
+  hasConsent: boolean;
 }) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -233,31 +245,13 @@ function WelcomeModal({
               </div>
             </div>
 
-            {/* Privacy notice */}
-            <p className="mb-4 text-center text-[var(--color-text-muted)] text-xs">
-              By continuing, you agree to our use of cookies for analytics and
-              wallet connections.{" "}
-              <Link
-                href="/privacy"
-                className="text-[var(--color-accent-cyan)] underline underline-offset-2 hover:text-[var(--color-accent-cyan)]/80"
-              >
-                Privacy Policy
-              </Link>
-            </p>
-
-            {/* CTA Buttons */}
-            <div className="flex gap-3">
+            {/* CTA Section */}
+            {hasConsent ? (
               <button
-                onClick={() => onClose(false)}
-                className="btn btn-secondary flex-1 text-sm"
+                onClick={() => onClose()}
+                className="btn btn-primary w-full text-base"
               >
-                Decline
-              </button>
-              <button
-                onClick={() => onClose(true)}
-                className="btn btn-primary flex-1 text-base"
-              >
-                <span>Accept & Start</span>
+                <span>Start Painting</span>
                 <svg
                   className="h-5 w-5"
                   fill="none"
@@ -272,7 +266,50 @@ function WelcomeModal({
                   />
                 </svg>
               </button>
-            </div>
+            ) : (
+              <>
+                {/* Privacy notice */}
+                <p className="mb-4 text-center text-[var(--color-text-muted)] text-xs">
+                  By continuing, you agree to our use of cookies for analytics
+                  and wallet connections.{" "}
+                  <Link
+                    href="/privacy"
+                    className="text-[var(--color-accent-cyan)] underline underline-offset-2 hover:text-[var(--color-accent-cyan)]/80"
+                  >
+                    Privacy Policy
+                  </Link>
+                </p>
+
+                {/* CTA Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => onClose(false)}
+                    className="btn btn-secondary flex-1 text-sm"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => onClose(true)}
+                    className="btn btn-primary flex-1 text-base"
+                  >
+                    <span>Accept & Start</span>
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

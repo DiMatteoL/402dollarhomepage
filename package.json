@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@coinbase/x402": "^0.7.3",
+    "@hotjar/browser": "^1.0.9",
     "@privy-io/react-auth": "^3.8.1",
     "@sentry/nextjs": "^10",
     "@supabase/supabase-js": "^2.86.2",
