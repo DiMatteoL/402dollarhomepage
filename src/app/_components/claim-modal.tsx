@@ -289,25 +289,53 @@ export function ClaimModal({
 
       // 3. Create wallet client from Privy provider
       const provider = await activeWallet.getEthereumProvider();
-      let providerChainId = await provider.request({ method: "eth_chainId" });
+
+      // Helper to parse chain ID from various formats (hex string, number, etc.)
+      const parseChainId = (chainId: unknown): number => {
+        if (typeof chainId === "number") return chainId;
+        if (typeof chainId === "string") {
+          return chainId.startsWith("0x")
+            ? parseInt(chainId, 16)
+            : parseInt(chainId, 10);
+        }
+        return 0;
+      };
+
+      let providerChainId = parseChainId(
+        await provider.request({ method: "eth_chainId" })
+      );
+
+      console.log(
+        "[x402-batch] Expected chain:",
+        chain.id,
+        "Provider chain:",
+        providerChainId
+      );
 
       // If on wrong chain, attempt to switch
-      if (parseInt(providerChainId as string, 16) !== chain.id) {
+      if (providerChainId !== chain.id) {
         try {
           await activeWallet.switchChain(chain.id);
           // Re-check chain after switch
-          providerChainId = await provider.request({ method: "eth_chainId" });
+          providerChainId = parseChainId(
+            await provider.request({ method: "eth_chainId" })
+          );
+          console.log(
+            "[x402-batch] After switch, provider chain:",
+            providerChainId
+          );
         } catch (switchError) {
           console.log(
             "[x402-batch] Chain switch failed or was rejected:",
             switchError
           );
-          // On mobile, user may need to switch manually in their wallet
         }
 
         // Final check - if still on wrong chain, show helpful error
-        if (parseInt(providerChainId as string, 16) !== chain.id) {
-          throw new Error(`Please switch your wallet to Base and try again`);
+        if (providerChainId !== chain.id) {
+          throw new Error(
+            `Please switch your wallet to Base (chain ${chain.id}, got ${providerChainId}) and try again`
+          );
         }
       }
 

@@ -23,7 +23,7 @@ const MAX_CLAIMS = 10; // Maximum number of times a pixel can be claimed ($0.10 
 
 // Get x402 configuration from environment
 const NETWORK = (process.env.NEXT_PUBLIC_X402_NETWORK ??
-  "base-sepolia") as PaymentRequirements["network"];
+  "base") as PaymentRequirements["network"];
 const PAY_TO_ADDRESS =
   process.env.X402_PAY_TO_ADDRESS ??
   "0x0000000000000000000000000000000000000000";

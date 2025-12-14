@@ -26,7 +26,7 @@ const MAX_CLAIMS = 10; // Maximum number of times a pixel can be claimed
 
 // Get x402 configuration from environment
 const NETWORK = (process.env.NEXT_PUBLIC_X402_NETWORK ??
-  "base-sepolia") as PaymentRequirements["network"];
+  "base") as PaymentRequirements["network"];
 const PAY_TO_ADDRESS =
   process.env.X402_PAY_TO_ADDRESS ??
   "0x0000000000000000000000000000000000000000";
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
     // Settle the payment with retry logic for timeouts
     let settleResult;
     const maxRetries = 3;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`[x402-batch] Settlement attempt ${attempt}/${maxRetries}`);
@@ -278,14 +278,14 @@ export async function POST(request: NextRequest) {
       } catch (settleError) {
         const errorMessage = settleError instanceof Error ? settleError.message : String(settleError);
         console.error(`[x402-batch] Settlement attempt ${attempt} failed:`, errorMessage);
-        
+
         // If it's a timeout or network error, retry
-        const isRetryable = errorMessage.includes('timeout') || 
-                           errorMessage.includes('504') || 
+        const isRetryable = errorMessage.includes('timeout') ||
+                           errorMessage.includes('504') ||
                            errorMessage.includes('503') ||
                            errorMessage.includes('ECONNRESET') ||
                            errorMessage.includes('network');
-        
+
         if (isRetryable && attempt < maxRetries) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, attempt - 1) * 1000;

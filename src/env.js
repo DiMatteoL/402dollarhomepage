@@ -32,7 +32,7 @@ export const env = createEnv({
 			"polygon", "polygon-amoy", "abstract", "abstract-testnet",
 			"sei", "sei-testnet", "peaq", "story", "educhain", "iotex",
 			"skale-base-sepolia", "solana-devnet", "solana"
-		]).default("base-sepolia"),
+		]).default("base"),
 		// Sentry DSN (public key)
 		NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 	},
