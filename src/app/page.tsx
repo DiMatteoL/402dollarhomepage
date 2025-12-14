@@ -27,6 +27,9 @@ export default function HomePage() {
   // Modal state
   const [showClaimModal, setShowClaimModal] = useState(false);
 
+  // Canvas refresh trigger - increment to force refetch after successful transaction
+  const [canvasRefreshTrigger, setCanvasRefreshTrigger] = useState(0);
+
   // Recent colors
   const { addRecentColor } = useRecentColors();
 
@@ -86,6 +89,9 @@ export default function HomePage() {
 
     // Clear all pending pixels
     clearAll();
+
+    // Force canvas to refetch data (ensures pixels show on Android where realtime may be unreliable)
+    setCanvasRefreshTrigger((prev) => prev + 1);
   }, [pendingPixels, addRecentColor, clearAll]);
 
   return (
@@ -96,6 +102,7 @@ export default function HomePage() {
           onPixelPaint={handlePixelPaint}
           hoverColor={selectedColor}
           pendingPixels={pendingPixels}
+          refreshTrigger={canvasRefreshTrigger}
         />
       </div>
 

@@ -25,19 +25,26 @@ interface UseBinaryCanvasReturn {
 	updatePixel: (x: number, y: number, color: string, updateCount: number) => void;
 }
 
+interface UseBinaryCanvasOptions {
+	/** Increment to trigger a refetch (useful for forcing refresh after transactions) */
+	refreshTrigger?: number;
+}
+
 /**
  * Hook to fetch and manage binary canvas data
  *
  * Fetches canvas pixels in efficient binary format (~19x smaller than JSON)
  * and maintains a local Map for fast pixel lookups.
  */
-export function useBinaryCanvas(): UseBinaryCanvasReturn {
+export function useBinaryCanvas(options?: UseBinaryCanvasOptions): UseBinaryCanvasReturn {
 	const [pixels, setPixels] = useState<Map<string, CanvasPixel>>(new Map());
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
 	// Track if component is mounted to prevent state updates after unmount
 	const isMountedRef = useRef(true);
+	// Track the last refresh trigger to detect changes
+	const lastRefreshTriggerRef = useRef(options?.refreshTrigger ?? 0);
 
 	const fetchCanvas = useCallback(async () => {
 		try {
@@ -76,6 +83,16 @@ export function useBinaryCanvas(): UseBinaryCanvasReturn {
 			isMountedRef.current = false;
 		};
 	}, [fetchCanvas]);
+
+	// Refetch when refreshTrigger changes (for post-transaction refresh)
+	useEffect(() => {
+		const currentTrigger = options?.refreshTrigger ?? 0;
+		if (currentTrigger !== lastRefreshTriggerRef.current) {
+			lastRefreshTriggerRef.current = currentTrigger;
+			console.log("[useBinaryCanvas] Refresh triggered, refetching canvas...");
+			void fetchCanvas();
+		}
+	}, [options?.refreshTrigger, fetchCanvas]);
 
 	// Update a single pixel (for real-time subscription updates)
 	const updatePixel = useCallback(

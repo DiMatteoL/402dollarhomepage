@@ -39,6 +39,8 @@ interface PixelCanvasProps {
   hoverColor?: string;
   /** Pixels that have been painted locally but not yet claimed */
   pendingPixels?: Map<string, PendingPixel>;
+  /** Increment to trigger a canvas data refetch (useful after successful transactions) */
+  refreshTrigger?: number;
 }
 
 /**
@@ -381,6 +383,7 @@ export function PixelCanvas({
   onPixelPaint,
   hoverColor = "#00ffff",
   pendingPixels = new Map(),
+  refreshTrigger,
 }: PixelCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredPixel, setHoveredPixel] = useState<{
@@ -396,7 +399,7 @@ export function PixelCanvas({
   const [initialScale, setInitialScale] = useState<number | null>(null);
 
   // Use binary canvas hook for efficient data fetching
-  const { pixels, isLoading, updatePixel } = useBinaryCanvas();
+  const { pixels, isLoading, updatePixel } = useBinaryCanvas({ refreshTrigger });
 
   // Calculate max updateCount for price tooltip coloring
   const [maxUpdateCount, setMaxUpdateCount] = useState<number | null>(null);
