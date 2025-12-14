@@ -45,6 +45,10 @@ interface PixelCanvasProps {
  * Canvas rendering component
  * Uses binary format for efficient initial load
  */
+// Get DPR once at module level (will be 1 on SSR, updated on client)
+const getDpr = () =>
+  typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
 function CanvasContent({
   onPixelPaint,
   hoveredPixel,
@@ -76,6 +80,7 @@ function CanvasContent({
   ) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [dpr, setDpr] = useState(getDpr);
 
   // Local pixel data ref for rendering (includes real-time updates)
   const pixelDataRef = useRef<
@@ -91,6 +96,11 @@ function CanvasContent({
   const hoveredPixelRef = useRef(hoveredPixel);
   const hoverColorRef = useRef(hoverColor);
   const pendingPixelsRef = useRef(pendingPixels);
+
+  // Update DPR on client mount (for SSR hydration)
+  useEffect(() => {
+    setDpr(window.devicePixelRatio || 1);
+  }, []);
 
   // Keep refs in sync
   useEffect(() => {
@@ -121,12 +131,17 @@ function CanvasContent({
     const currentHoveredPixel = hoveredPixelRef.current;
     const currentHoverColor = hoverColorRef.current;
     const currentPendingPixels = pendingPixelsRef.current;
-    const dpr = window.devicePixelRatio || 1;
 
-    // Set canvas size to match the logical canvas size
-    canvas.width = CANVAS_SIZE * dpr;
-    canvas.height = CANVAS_SIZE * dpr;
-    ctx.scale(dpr, dpr);
+    // Only resize canvas if dimensions changed (avoids unnecessary clears)
+    const targetWidth = CANVAS_SIZE * dpr;
+    const targetHeight = CANVAS_SIZE * dpr;
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
+
+    // Reset transform and scale for DPR
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Fill background
     ctx.fillStyle = CANVAS_BG_COLOR;
@@ -209,7 +224,7 @@ function CanvasContent({
       ctx.strokeRect(currentHoveredPixel.x, currentHoveredPixel.y, 1, 1);
       ctx.shadowBlur = 0;
     }
-  }, []);
+  }, [dpr]);
 
   // Sync binary pixel data to render ref
   useEffect(() => {
@@ -345,7 +360,6 @@ function CanvasContent({
       {isLoading && <LoadingOverlay />}
       <canvas
         className="cursor-crosshair"
-        height={CANVAS_SIZE}
         onMouseDown={handleMouseDown}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseMove}
@@ -354,9 +368,7 @@ function CanvasContent({
         style={{
           width: CANVAS_SIZE,
           height: CANVAS_SIZE,
-          imageRendering: "pixelated",
         }}
-        width={CANVAS_SIZE}
       />
     </>
   );

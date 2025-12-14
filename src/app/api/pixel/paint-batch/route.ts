@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { and, eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "~/server/db";
@@ -96,7 +96,9 @@ function createBatchPaymentRequirements(
     network: NETWORK,
     maxAmountRequired: calculateBatchPriceInAtomicUnits(pixelUpdates),
     resource: requestUrl,
-    description: `Paint ${pixelUpdates.length} pixel${pixelUpdates.length !== 1 ? "s" : ""} on 402 Dollar Homepage`,
+    description: `Paint ${pixelUpdates.length} pixel${
+      pixelUpdates.length !== 1 ? "s" : ""
+    } on 402 Dollar Homepage`,
     mimeType: "application/json",
     payTo: PAY_TO_ADDRESS as `0x${string}`,
     maxTimeoutSeconds: 300, // 5 minutes
@@ -280,63 +282,61 @@ export async function POST(request: NextRequest) {
         ? paymentPayload.payload.authorization.from
         : "unknown";
 
-    // Process all pixel updates in a transaction
-    const updatedPixels: Array<{
-      x: number;
-      y: number;
-      color: string;
-      updateCount: number;
-    }> = [];
+    const now = new Date();
+    const txHash = settleResult.transaction ?? "";
+    const txId = settleResult.transaction ?? Date.now().toString();
 
-    for (const pixelUpdate of pixelUpdates) {
-      const { x, y, color, currentUpdateCount } = pixelUpdate;
-      const newUpdateCount = currentUpdateCount + 1;
-      const newPrice = (BASE_PRICE_CENTS * (newUpdateCount + 1)) / 100;
-      const paidAmount =
-        (BASE_PRICE_CENTS * (currentUpdateCount + 1)) / 100;
+    // Build all payment records for bulk insert
+    const paymentRecords = pixelUpdates.map((p) => ({
+      pixelX: p.x,
+      pixelY: p.y,
+      owner: payerAddress,
+      amount: (BASE_PRICE_CENTS * (p.currentUpdateCount + 1)) / 100,
+      nonce: `${txId}-${p.x}-${p.y}`,
+      paymentHash: txHash,
+    }));
 
-      // Record the payment
-      await db.insert(payments).values({
-        pixelX: x,
-        pixelY: y,
-        owner: payerAddress,
-        amount: paidAmount,
-        nonce: `${settleResult.transaction ?? Date.now()}-${x}-${y}`,
-        paymentHash: settleResult.transaction ?? "",
-      });
+    // Build all pixel records for bulk upsert
+    const pixelRecords = pixelUpdates.map((p) => ({
+      x: p.x,
+      y: p.y,
+      color: p.color,
+      owner: payerAddress,
+      timestamp: now,
+      price: (BASE_PRICE_CENTS * (p.currentUpdateCount + 2)) / 100,
+      updateCount: p.currentUpdateCount + 1,
+    }));
 
-      // Update or insert pixel
-      const existing = existingMap.get(`${x}-${y}`);
-      if (existing) {
-        await db
-          .update(pixels)
-          .set({
-            color: color,
-            owner: payerAddress,
-            timestamp: new Date(),
-            price: newPrice,
-            updateCount: newUpdateCount,
-          })
-          .where(and(eq(pixels.x, x), eq(pixels.y, y)));
-      } else {
-        await db.insert(pixels).values({
-          x: x,
-          y: y,
-          color: color,
-          owner: payerAddress,
-          timestamp: new Date(),
-          price: newPrice,
-          updateCount: 1,
-        });
-      }
+    // Bulk insert payments (single query)
+    await db.insert(payments).values(paymentRecords);
 
-      updatedPixels.push({
-        x,
-        y,
-        color,
-        updateCount: newUpdateCount,
-      });
-    }
+    // Bulk upsert pixels using raw SQL for ON CONFLICT
+    // This handles both new pixels and updates in a single query
+    const timestampStr = now.toISOString();
+    await db.execute(sql`
+      INSERT INTO xf_pixels (x, y, color, owner, timestamp, price, "updateCount")
+      VALUES ${sql.join(
+        pixelRecords.map(
+          (p) =>
+            sql`(${p.x}, ${p.y}, ${p.color}, ${p.owner}, ${timestampStr}::timestamptz, ${p.price}, ${p.updateCount})`
+        ),
+        sql`, `
+      )}
+      ON CONFLICT (x, y) DO UPDATE SET
+        color = EXCLUDED.color,
+        owner = EXCLUDED.owner,
+        timestamp = EXCLUDED.timestamp,
+        price = EXCLUDED.price,
+        "updateCount" = EXCLUDED."updateCount"
+    `);
+
+    // Build response
+    const updatedPixels = pixelUpdates.map((p) => ({
+      x: p.x,
+      y: p.y,
+      color: p.color,
+      updateCount: p.currentUpdateCount + 1,
+    }));
 
     // Return success with settlement info
     return NextResponse.json(
