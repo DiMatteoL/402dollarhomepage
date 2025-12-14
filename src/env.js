@@ -14,6 +14,8 @@ export const env = createEnv({
 		// x402 server configuration
 		X402_PAY_TO_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
 		X402_FACILITATOR_URL: z.string().url().optional(),
+		// Sentry configuration
+		SENTRY_DSN: z.string().url().optional(),
 	},
 
 	/**
@@ -31,6 +33,8 @@ export const env = createEnv({
 			"sei", "sei-testnet", "peaq", "story", "educhain", "iotex",
 			"skale-base-sepolia", "solana-devnet", "solana"
 		]).default("base-sepolia"),
+		// Sentry DSN (public key)
+		NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 	},
 
 	/**
@@ -47,6 +51,9 @@ export const env = createEnv({
 		// x402 server configuration
 		X402_PAY_TO_ADDRESS: process.env.X402_PAY_TO_ADDRESS,
 		X402_FACILITATOR_URL: process.env.X402_FACILITATOR_URL,
+		// Sentry configuration
+		SENTRY_DSN: process.env.SENTRY_DSN,
+		NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
 	},
 
 	/**
