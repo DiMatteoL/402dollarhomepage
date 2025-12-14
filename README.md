@@ -1,29 +1,38 @@
-# Create T3 App
+# 402 Dollar Homepage
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+A modern take on the Million Dollar Homepage, powered by micropayments and Web3 technology.
 
-## What's next? How do I make an app with this?
+## Tech Stack
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- **[Privy](https://privy.io)** - Wallet authentication
+- **[x402](https://github.com/coinbase/x402)** - HTTP 402 micropayment protocol
+- **[Supabase](https://supabase.com)** - Database and backend
+- **[Next.js](https://nextjs.org)** - React framework
+- **[tRPC](https://trpc.io)** - Type-safe APIs
+- **[Drizzle ORM](https://orm.drizzle.team)** - Database ORM
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Installation
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+This project uses [Bun](https://bun.sh) as the package manager.
 
-## Learn More
+```bash
+# Install dependencies
+bun install
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+# Set up environment variables
+cp .env.example .env
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+# Run database migrations
+bun run db:push
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+# Start development server
+bun run dev
+```
 
-## How do I deploy this?
+## Development
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+Built primarily using **Cursor** in agentic mode with **Claude Opus**.
+
+## License
+
+Non-Commercial - Free for personal and educational use. Commercial use requires permission.
