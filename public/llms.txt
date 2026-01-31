@@ -260,6 +260,50 @@ Maximum 100 pixels per batch request.
 
 **Recommended approach:** Use `wrapFetch` from `x402/fetch` to automatically handle the 402 flow (see SDK Quickstart above).
 
+## X-PAYMENT Header Format (v1)
+
+The X-PAYMENT header must be a base64-encoded JSON with this structure:
+
+```json
+{
+  "x402Version": 1,
+  "scheme": "exact",
+  "network": "base",
+  "payload": {
+    "authorization": {
+      "from": "0xYourWallet",
+      "to": "0x0c1bca2283b125f78c1ade27dd260184e9ec2faf",
+      "value": "10000",
+      "validAfter": "1234567890",
+      "validBefore": "1234568190",
+      "nonce": "0x..."
+    },
+    "signature": "0x..."
+  }
+}
+```
+
+**IMPORTANT:** The `@x402/evm` SDK omits `scheme` and `network` from the outer payload. You must add them manually:
+
+```typescript
+import { createPayment } from "@x402/evm";
+
+// SDK returns: { x402Version: 1, payload: {...} }
+const sdkPayload = await createPayment(walletClient, paymentRequirements);
+
+// You must add scheme and network from the payment requirements:
+const completePayload = {
+  ...sdkPayload,
+  scheme: paymentRequirements.scheme,     // "exact"
+  network: paymentRequirements.network,   // "base" or "base-sepolia"
+};
+
+// Then base64 encode for the header
+const xPaymentHeader = btoa(JSON.stringify(completePayload));
+```
+
+For Base Sepolia testnet, use `"network": "base-sepolia"` instead.
+
 ## x402 Protocol Details
 
 ### Mainnet (Base)
@@ -320,17 +364,21 @@ curl "https://x402dollarhomepage.com/api/sepolia/canvas/json"
 |---------|---------|
 | `x402` | Core x402 protocol types and utilities |
 | `@coinbase/x402` | Coinbase facilitator for payment verification |
+| `@x402/evm` | EVM payment creation (note: requires manual scheme/network addition) |
 | `viem` | Ethereum wallet client for signing transactions |
 
 Install all: `npm install x402 @coinbase/x402 viem`
 
 Key imports:
 ```typescript
-import { wrapFetch } from "x402/fetch";           // Auto-handles 402 flow
+import { wrapFetch } from "x402/fetch";           // Auto-handles 402 flow (recommended)
 import { facilitator } from "@coinbase/x402";     // Coinbase payment facilitator
+import { createPayment } from "@x402/evm";        // Manual payment creation (see header format section)
 import { createWalletClient } from "viem";        // Wallet for signing
 import { base, baseSepolia } from "viem/chains";  // Chain configs
 ```
+
+**Tip:** Use `wrapFetch` when possible - it handles the full 402 flow automatically. Only use `@x402/evm` directly if you need more control (and remember to add `scheme` + `network` to the payload).
 
 ## OpenAPI Specification
 
