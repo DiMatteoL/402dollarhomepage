@@ -122,3 +122,83 @@ export function subscribeToPixelUpdates(
     supabase.removeChannel(channel);
   };
 }
+
+/**
+ * Subscribe to real-time sepolia pixel updates (testnet)
+ * @param onPixelUpdate - Callback function when a pixel is updated
+ * @returns Unsubscribe function
+ */
+export function subscribeToSepoliaPixelUpdates(
+  onPixelUpdate: (pixel: RealtimePixel) => void
+): () => void {
+  console.log("[Supabase Realtime] Setting up subscription to xf_sepolia_pixels...");
+
+  const channel: RealtimeChannel = supabase
+    .channel("xf_sepolia_pixels_realtime")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "xf_sepolia_pixels",
+      },
+      (payload) => {
+        console.log("[Supabase Realtime Sepolia] INSERT received:", payload);
+        const newData = payload.new as PixelDatabaseRow;
+        if (newData && newData.x !== undefined && newData.y !== undefined) {
+          onPixelUpdate({
+            x: newData.x,
+            y: newData.y,
+            color: newData.color,
+            owner: newData.owner,
+            price: newData.price,
+            updateCount: newData.updateCount,
+          });
+        }
+      }
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "xf_sepolia_pixels",
+      },
+      (payload) => {
+        console.log("[Supabase Realtime Sepolia] UPDATE received:", payload);
+        const newData = payload.new as PixelDatabaseRow;
+        if (newData && newData.x !== undefined && newData.y !== undefined) {
+          onPixelUpdate({
+            x: newData.x,
+            y: newData.y,
+            color: newData.color,
+            owner: newData.owner,
+            price: newData.price,
+            updateCount: newData.updateCount,
+          });
+        }
+      }
+    )
+    .subscribe((status, err) => {
+      console.log("[Supabase Realtime Sepolia] Subscription status:", status);
+      if (err) {
+        console.error("[Supabase Realtime Sepolia] Subscription error:", err);
+      }
+      if (status === "SUBSCRIBED") {
+        console.log(
+          "[Supabase Realtime Sepolia] ✓ Successfully subscribed to sepolia pixel updates"
+        );
+      } else if (status === "CHANNEL_ERROR") {
+        console.error(
+          "[Supabase Realtime Sepolia] ✗ Channel error - check table permissions and realtime settings"
+        );
+      } else if (status === "TIMED_OUT") {
+        console.warn("[Supabase Realtime Sepolia] ✗ Subscription timed out");
+      }
+    });
+
+  return () => {
+    console.log("[Supabase Realtime Sepolia] Unsubscribing from sepolia pixel updates");
+    supabase.removeChannel(channel);
+  };
+}

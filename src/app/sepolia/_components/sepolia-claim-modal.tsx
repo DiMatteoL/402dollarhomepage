@@ -286,8 +286,33 @@ export function SepoliaClaimModal({
     setPaymentState("preparing");
 
     try {
-      // Switch to Base Sepolia
-      await activeWallet.switchChain(baseSepolia.id);
+      // Switch to Base Sepolia - try adding the chain if it doesn't exist
+      try {
+        await activeWallet.switchChain(baseSepolia.id);
+      } catch (switchError: unknown) {
+        const errorMsg = switchError instanceof Error ? switchError.message : String(switchError);
+        console.warn("Chain switch failed:", errorMsg);
+        
+        // Try to add the chain via the provider
+        try {
+          const provider = await activeWallet.getEthereumProvider();
+          await provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: `0x${baseSepolia.id.toString(16)}`,
+              chainName: "Base Sepolia",
+              nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+              rpcUrls: ["https://sepolia.base.org"],
+              blockExplorerUrls: ["https://sepolia.basescan.org"],
+            }],
+          });
+          // Try switching again after adding
+          await activeWallet.switchChain(baseSepolia.id);
+        } catch (addError) {
+          console.error("Failed to add Base Sepolia network:", addError);
+          throw new Error("Please add Base Sepolia network to your wallet manually");
+        }
+      }
 
       // Prepare pixels for batch request
       const pixelsArray = Array.from(pendingPixels.values()).map((p) => ({

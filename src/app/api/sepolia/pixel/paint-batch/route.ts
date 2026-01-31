@@ -276,6 +276,10 @@ export async function POST(request: NextRequest) {
       updateCount: p.currentUpdateCount + 1,
     }));
 
+    // Debug: check current role
+    const roleResult = await db.execute(sql`SELECT current_user, session_user`);
+    console.log("[sepolia-debug] DB connection role:", roleResult);
+    
     await db.insert(sepoliaPayments).values(paymentRecords);
 
     const timestampStr = now.toISOString();

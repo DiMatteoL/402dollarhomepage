@@ -24,7 +24,7 @@ export function Privy({ children }: Props) {
             createOnLogin: "users-without-wallets",
           },
         },
-        supportedChains: [base],
+        supportedChains: [base, baseSepolia],
         defaultChain: base,
       }}
     >

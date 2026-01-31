@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { decodeCanvasToMap } from "./binary-canvas";
+import { subscribeToSepoliaPixelUpdates } from "./supabase";
 
 /** Pixel data from binary format */
 export interface SepoliaCanvasPixel {
@@ -89,6 +90,30 @@ export function useSepoliaCanvas(options?: UseSepoliaCanvasOptions): UseSepoliaC
       void fetchCanvas();
     }
   }, [options?.refreshTrigger, fetchCanvas]);
+
+  // Subscribe to realtime updates
+  useEffect(() => {
+    console.log("[useSepoliaCanvas] Setting up realtime subscription...");
+    
+    const unsubscribe = subscribeToSepoliaPixelUpdates((pixel) => {
+      console.log("[useSepoliaCanvas] Realtime update received:", pixel);
+      setPixels((prev) => {
+        const next = new Map(prev);
+        next.set(`${pixel.x}-${pixel.y}`, {
+          x: pixel.x,
+          y: pixel.y,
+          color: pixel.color,
+          updateCount: pixel.updateCount,
+        });
+        return next;
+      });
+    });
+
+    return () => {
+      console.log("[useSepoliaCanvas] Cleaning up realtime subscription");
+      unsubscribe();
+    };
+  }, []);
 
   // Update a single pixel
   const updatePixel = useCallback(
