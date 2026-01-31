@@ -51,7 +51,10 @@ export function useBinaryCanvas(options?: UseBinaryCanvasOptions): UseBinaryCanv
 			setIsLoading(true);
 			setError(null);
 
-			const response = await fetch("/api/canvas/binary");
+			// Use cache-busting timestamp to ensure fresh data after transactions
+			const response = await fetch(`/api/canvas/binary?t=${Date.now()}`, {
+				cache: "no-store",
+			});
 
 			if (!response.ok) {
 				throw new Error(`Failed to fetch canvas: ${response.status}`);

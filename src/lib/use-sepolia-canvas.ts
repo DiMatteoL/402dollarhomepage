@@ -47,8 +47,10 @@ export function useSepoliaCanvas(options?: UseSepoliaCanvasOptions): UseSepoliaC
       setIsLoading(true);
       setError(null);
 
-      // Use sepolia API endpoint
-      const response = await fetch("/api/sepolia/canvas/binary");
+      // Use sepolia API endpoint with cache-busting timestamp
+      const response = await fetch(`/api/sepolia/canvas/binary?t=${Date.now()}`, {
+        cache: "no-store",
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch sepolia canvas: ${response.status}`);
