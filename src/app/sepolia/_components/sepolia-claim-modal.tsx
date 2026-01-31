@@ -236,18 +236,26 @@ export function SepoliaClaimModal({
       setPaymentState("signing");
 
       const provider = await activeWallet.getEthereumProvider();
-      const client = createWalletClient({
+      const walletClient = createWalletClient({
+        account: walletAddress as `0x${string}`,
         chain: baseSepolia,
         transport: custom(provider),
       }).extend(publicActions);
 
-      const preparedPayment = await preparePaymentHeader(
-        client,
-        requirements,
-        X402_VERSION
+      // Prepare unsigned payment header
+      const unsigned = preparePaymentHeader(
+        walletAddress as `0x${string}`,
+        X402_VERSION,
+        requirements
       );
 
-      const signedPayment = await signPaymentHeader(client, preparedPayment);
+      // Sign the payment header
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const signedPayment = await signPaymentHeader(
+        walletClient as any,
+        requirements,
+        unsigned
+      );
 
       // Submit with payment
       setPaymentState("submitting");
