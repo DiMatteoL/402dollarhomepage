@@ -1,0 +1,148 @@
+# X402 Dollar Homepage - AI Agent Documentation
+# https://x402dollarhomepage.com/llms.txt
+
+## What This Site Is
+
+X402 Dollar Homepage is a 1000x1000 pixel canvas where anyone can buy and paint pixels using USDC cryptocurrency via the x402 protocol. It's a modern, blockchain-powered successor to the original Million Dollar Homepage.
+
+## How It Works
+
+- Canvas: 1000x1000 pixels (1 million total pixels)
+- Payment: USDC on Base network via x402 protocol
+- Pricing: $0.01 per pixel initially, +$0.01 for each repaint (max 10 repaints = $0.10 max)
+- Each pixel can be claimed up to 10 times total
+
+## API Endpoints
+
+### Get Canvas Data
+
+```
+GET /api/canvas/binary
+```
+Returns the entire canvas as binary data (efficient, ~19x smaller than JSON).
+Content-Type: application/octet-stream
+
+```
+GET /api/canvas/json
+```
+Returns the entire canvas as JSON (agent-friendly).
+Content-Type: application/json
+
+### Get Single Pixel Info
+
+```
+GET /api/pixel/paint?x={x}&y={y}
+```
+Returns pixel info including current color, owner, price, and payment requirements.
+
+Response:
+```json
+{
+  "pixel": {
+    "x": 100,
+    "y": 200,
+    "color": "#ff0000",
+    "owner": "0x...",
+    "price": 0.01,
+    "updateCount": 0
+  },
+  "maxClaims": 10,
+  "paymentRequirements": { ... }
+}
+```
+
+### Paint a Single Pixel (x402 Payment Required)
+
+```
+POST /api/pixel/paint
+Content-Type: application/json
+
+{
+  "x": 100,
+  "y": 200,
+  "color": "#ff0000"
+}
+```
+
+Without payment header: Returns 402 with payment requirements.
+With valid X-PAYMENT header: Processes payment and updates pixel.
+
+### Paint Multiple Pixels (x402 Payment Required)
+
+```
+POST /api/pixel/paint-batch
+Content-Type: application/json
+
+{
+  "pixels": [
+    { "x": 100, "y": 200, "color": "#ff0000" },
+    { "x": 101, "y": 200, "color": "#00ff00" }
+  ]
+}
+```
+
+Maximum 100 pixels per batch request.
+
+## x402 Payment Flow
+
+1. Send POST request without X-PAYMENT header
+2. Receive 402 response with payment requirements:
+```json
+{
+  "x402Version": 1,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "base",
+    "maxAmountRequired": "10000",
+    "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "payTo": "0x...",
+    "description": "Paint pixel (100, 200) on 402 Dollar Homepage"
+  }],
+  "error": "Payment required"
+}
+```
+3. Sign USDC permit/transfer authorization
+4. Resend request with X-PAYMENT header (base64 encoded payment payload)
+5. Server verifies and settles payment via Coinbase facilitator
+6. Pixel is updated on success
+
+## x402 Protocol Details
+
+- Payment Token: USDC on Base (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
+- Network: Base (Chain ID: 8453)
+- Amount: In atomic units (6 decimals) - $0.01 = 10000 units
+- Facilitator: Coinbase x402 facilitator
+
+## Coordinates
+
+- X: 0 to 999 (left to right)
+- Y: 0 to 999 (top to bottom)
+- Colors: Hex format (#RRGGBB)
+
+## Rate Limits & Constraints
+
+- Max pixels per batch: 100
+- Max claims per pixel: 10
+- Payment timeout: 300 seconds (5 minutes)
+
+## Example: Check Pixel Price
+
+```bash
+curl "https://x402dollarhomepage.com/api/pixel/paint?x=500&y=500"
+```
+
+## Example: Get Canvas State
+
+```bash
+curl "https://x402dollarhomepage.com/api/canvas/json"
+```
+
+## OpenAPI Specification
+
+Full API documentation available at:
+https://x402dollarhomepage.com/openapi.json
+
+## Contact
+
+Website: https://x402dollarhomepage.com
+Twitter: @X402DollarHomepage

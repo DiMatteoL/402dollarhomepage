@@ -1,0 +1,645 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "X402 Dollar Homepage API",
+    "description": "API for the X402 Dollar Homepage - a 1000x1000 pixel canvas where you can buy and paint pixels using USDC via the x402 protocol.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "X402 Dollar Homepage",
+      "url": "https://x402dollarhomepage.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://x402dollarhomepage.com",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/api/canvas/binary": {
+      "get": {
+        "operationId": "getCanvasBinary",
+        "summary": "Get canvas as binary data",
+        "description": "Returns the entire 1000x1000 pixel canvas as efficient binary data. Approximately 19x smaller than JSON format.",
+        "tags": ["Canvas"],
+        "responses": {
+          "200": {
+            "description": "Binary canvas data",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/canvas/json": {
+      "get": {
+        "operationId": "getCanvasJson",
+        "summary": "Get canvas as JSON",
+        "description": "Returns the entire canvas as a JSON object with all pixel data. More readable for agents but larger than binary format.",
+        "tags": ["Canvas"],
+        "responses": {
+          "200": {
+            "description": "Canvas data in JSON format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanvasResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pixel/paint": {
+      "get": {
+        "operationId": "getPixelInfo",
+        "summary": "Get pixel information",
+        "description": "Returns information about a specific pixel including its current color, owner, price, and x402 payment requirements.",
+        "tags": ["Pixel"],
+        "parameters": [
+          {
+            "name": "x",
+            "in": "query",
+            "required": true,
+            "description": "X coordinate (0-999)",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 999
+            }
+          },
+          {
+            "name": "y",
+            "in": "query",
+            "required": true,
+            "description": "Y coordinate (0-999)",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 999
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pixel information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PixelInfoResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid coordinates",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "paintPixel",
+        "summary": "Paint a single pixel",
+        "description": "Paint a pixel with the specified color. Requires x402 USDC payment. Without X-PAYMENT header, returns 402 with payment requirements. With valid payment, processes the transaction and updates the pixel.",
+        "tags": ["Pixel"],
+        "parameters": [
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 payment payload. If omitted, returns 402 with payment requirements.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaintPixelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pixel painted successfully",
+            "headers": {
+              "X-PAYMENT-RESPONSE": {
+                "description": "Base64-encoded payment response with transaction details",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaintPixelResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body or payment header",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required - returns x402 payment requirements",
+            "headers": {
+              "X-PAYMENT-REQUIRED": {
+                "description": "Indicates payment is required",
+                "schema": {
+                  "type": "string",
+                  "enum": ["true"]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequiredResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Pixel has reached maximum claim limit (10)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClaimLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pixel/paint-batch": {
+      "post": {
+        "operationId": "paintPixelBatch",
+        "summary": "Paint multiple pixels",
+        "description": "Paint up to 100 pixels in a single transaction. Requires x402 USDC payment for the total cost of all pixels.",
+        "tags": ["Pixel"],
+        "parameters": [
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 payment payload",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaintBatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pixels painted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaintBatchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchPaymentRequiredResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Some pixels have reached claim limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchClaimLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          }
+        },
+        "required": ["error"]
+      },
+      "Pixel": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer",
+            "description": "X coordinate (0-999)",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "y": {
+            "type": "integer",
+            "description": "Y coordinate (0-999)",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex color code",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "example": "#ff0000"
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true,
+            "description": "Wallet address of current owner"
+          },
+          "price": {
+            "type": "number",
+            "description": "Current price in USD",
+            "example": 0.01
+          },
+          "updateCount": {
+            "type": "integer",
+            "description": "Number of times this pixel has been painted",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": ["x", "y", "color", "price", "updateCount"]
+      },
+      "CanvasResponse": {
+        "type": "object",
+        "properties": {
+          "canvas": {
+            "type": "object",
+            "properties": {
+              "width": {
+                "type": "integer",
+                "example": 1000
+              },
+              "height": {
+                "type": "integer",
+                "example": 1000
+              },
+              "defaultColor": {
+                "type": "string",
+                "example": "#1a1a2e"
+              }
+            }
+          },
+          "pixels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Pixel"
+            },
+            "description": "Array of pixels that have been painted (excludes default/empty pixels)"
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "totalPainted": {
+                "type": "integer",
+                "description": "Number of pixels that have been painted"
+              },
+              "totalPixels": {
+                "type": "integer",
+                "example": 1000000
+              }
+            }
+          }
+        }
+      },
+      "PixelInfoResponse": {
+        "type": "object",
+        "properties": {
+          "pixel": {
+            "$ref": "#/components/schemas/Pixel"
+          },
+          "maxClaims": {
+            "type": "integer",
+            "description": "Maximum number of times a pixel can be claimed",
+            "example": 10
+          },
+          "paymentRequirements": {
+            "$ref": "#/components/schemas/PaymentRequirements"
+          }
+        }
+      },
+      "PaymentRequirements": {
+        "type": "object",
+        "description": "x402 payment requirements",
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": ["exact"],
+            "description": "Payment scheme"
+          },
+          "network": {
+            "type": "string",
+            "example": "base",
+            "description": "Blockchain network"
+          },
+          "maxAmountRequired": {
+            "type": "string",
+            "description": "Amount in atomic units (6 decimals for USDC)",
+            "example": "10000"
+          },
+          "resource": {
+            "type": "string",
+            "description": "Resource URL"
+          },
+          "description": {
+            "type": "string",
+            "example": "Paint pixel (100, 200) on 402 Dollar Homepage"
+          },
+          "mimeType": {
+            "type": "string",
+            "example": "application/json"
+          },
+          "payTo": {
+            "type": "string",
+            "description": "Recipient wallet address"
+          },
+          "maxTimeoutSeconds": {
+            "type": "integer",
+            "example": 300
+          },
+          "asset": {
+            "type": "string",
+            "description": "USDC contract address on Base",
+            "example": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+          }
+        }
+      },
+      "PaintPixelRequest": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer",
+            "description": "X coordinate (0-999)",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "y": {
+            "type": "integer",
+            "description": "Y coordinate (0-999)",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex color code",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "example": "#ff0000"
+          }
+        },
+        "required": ["x", "y", "color"]
+      },
+      "PaintPixelResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "pixel": {
+            "$ref": "#/components/schemas/Pixel"
+          },
+          "settlement": {
+            "type": "object",
+            "properties": {
+              "transaction": {
+                "type": "string",
+                "description": "Transaction hash"
+              },
+              "network": {
+                "type": "string",
+                "example": "base"
+              }
+            }
+          }
+        }
+      },
+      "PaymentRequiredResponse": {
+        "type": "object",
+        "properties": {
+          "x402Version": {
+            "type": "integer",
+            "example": 1
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentRequirements"
+            }
+          },
+          "error": {
+            "type": "string",
+            "example": "Payment required"
+          }
+        }
+      },
+      "ClaimLimitError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Pixel claim limit reached"
+          },
+          "message": {
+            "type": "string"
+          },
+          "maxClaims": {
+            "type": "integer",
+            "example": 10
+          },
+          "currentClaims": {
+            "type": "integer"
+          }
+        }
+      },
+      "PaintBatchRequest": {
+        "type": "object",
+        "properties": {
+          "pixels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaintPixelRequest"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "Array of pixels to paint (max 100)"
+          }
+        },
+        "required": ["pixels"]
+      },
+      "PaintBatchResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "pixels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "integer" },
+                "y": { "type": "integer" },
+                "color": { "type": "string" },
+                "updateCount": { "type": "integer" }
+              }
+            }
+          },
+          "pixelCount": {
+            "type": "integer"
+          },
+          "settlement": {
+            "type": "object",
+            "properties": {
+              "transaction": { "type": "string" },
+              "network": { "type": "string" }
+            }
+          }
+        }
+      },
+      "BatchPaymentRequiredResponse": {
+        "type": "object",
+        "properties": {
+          "x402Version": {
+            "type": "integer"
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentRequirements"
+            }
+          },
+          "error": {
+            "type": "string"
+          },
+          "pixelCount": {
+            "type": "integer"
+          },
+          "totalPriceCents": {
+            "type": "integer",
+            "description": "Total price in cents"
+          }
+        }
+      },
+      "BatchClaimLimitError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "maxedPixels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "integer" },
+                "y": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Canvas",
+      "description": "Operations for retrieving the full canvas state"
+    },
+    {
+      "name": "Pixel",
+      "description": "Operations for reading and painting individual pixels"
+    }
+  ],
+  "externalDocs": {
+    "description": "AI Agent Documentation (llms.txt)",
+    "url": "https://x402dollarhomepage.com/llms.txt"
+  }
+}

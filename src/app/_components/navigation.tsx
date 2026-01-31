@@ -45,8 +45,24 @@ export function Navigation() {
                 Dollar
                 <span className="text-[var(--color-text-muted)]">Homepage</span>
               </h1>
-              <p className="text-[var(--color-text-muted)] text-xs">
-                $0.01 per pixel
+              <p className="group relative text-[var(--color-text-muted)] text-xs cursor-help">
+                <span className="border-b border-dashed border-[var(--color-text-muted)]/50 hover:border-[var(--color-accent-cyan)] hover:text-[var(--color-accent-cyan)] transition-colors">
+                  $0.01 per pixel
+                </span>
+                {/* Tooltip */}
+                <span className="pointer-events-none absolute top-full left-0 mt-2 w-48 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-2 text-[10px] leading-relaxed opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+                  {/* Tooltip arrow */}
+                  <span className="absolute bottom-full left-4 h-0 w-0 border-x-4 border-b-4 border-x-transparent border-b-[var(--color-border)]" />
+                  <span className="block font-medium text-[var(--color-text-primary)] mb-1">
+                    Dynamic Pricing
+                  </span>
+                  <span className="block text-[var(--color-text-secondary)]">
+                    Each pixel can be claimed up to 10 times. Price increases by $0.01 each claim.
+                  </span>
+                  <span className="block mt-1 text-[var(--color-accent-magenta)] font-medium">
+                    10th claim wins it forever!
+                  </span>
+                </span>
               </p>
             </div>
           </Link>
@@ -104,7 +120,7 @@ export function Navigation() {
           isDrawerOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <nav className="flex flex-col p-4">
+        <nav className="flex flex-col p-4 h-full overflow-y-auto">
           {/* Main Links */}
           <div className="space-y-1">
             <Link

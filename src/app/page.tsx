@@ -96,6 +96,42 @@ export default function HomePage() {
 
   return (
     <>
+      {/* Semantic HTML section for AI agents and screen readers */}
+      <section
+        aria-label="How X402 Dollar Homepage Works"
+        className="sr-only"
+      >
+        <h1>X402 Dollar Homepage</h1>
+        <h2>Buy and Paint Pixels with USDC</h2>
+        <p>
+          X402 Dollar Homepage is a 1000x1000 pixel canvas where you can buy and
+          paint pixels using USDC cryptocurrency via the x402 protocol. It is the
+          modern, blockchain-powered successor to the original Million Dollar Homepage.
+        </p>
+        <h3>Pricing</h3>
+        <p>
+          Each pixel starts at $0.01 USD. The price increases by $0.01 each time
+          a pixel is repainted, up to a maximum of $0.10 (10 claims maximum per pixel).
+          Payments are instant via the x402 protocol using USDC on the Base network.
+        </p>
+        <h3>API Access</h3>
+        <p>
+          Programmatic access is available via REST API. Get canvas data at
+          /api/canvas/json or /api/canvas/binary. Paint pixels by sending a POST
+          request to /api/pixel/paint with x, y coordinates and a hex color code.
+          The API uses the x402 payment protocol - send a request without payment
+          to receive payment requirements, then resend with the X-PAYMENT header.
+        </p>
+        <h3>Documentation</h3>
+        <ul>
+          <li>AI Agent Guide: /llms.txt</li>
+          <li>OpenAPI Specification: /openapi.json</li>
+          <li>Single Pixel API: GET/POST /api/pixel/paint</li>
+          <li>Batch Pixel API: POST /api/pixel/paint-batch (up to 100 pixels)</li>
+          <li>Canvas Data: GET /api/canvas/json</li>
+        </ul>
+      </section>
+
       {/* Full height canvas */}
       <div className="h-[calc(100vh-4rem)]">
         <PixelCanvas

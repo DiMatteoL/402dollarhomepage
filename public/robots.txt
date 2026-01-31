@@ -1,0 +1,11 @@
+# X402 Dollar Homepage - robots.txt
+# https://x402dollarhomepage.com
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://x402dollarhomepage.com/sitemap.xml
+
+# AI Agents - see /llms.txt for API documentation and integration guide
+# Machine-readable API spec at /openapi.json

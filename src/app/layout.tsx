@@ -117,6 +117,36 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
 });
 
+// JSON-LD structured data for AI agents and search engines
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "X402 Dollar Homepage",
+  description:
+    "A 1000x1000 pixel canvas where you can buy and paint pixels using USDC via the x402 protocol. The modern, blockchain-powered successor to Million Dollar Homepage.",
+  url: siteUrl,
+  applicationCategory: "DesignApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "0.01",
+    priceCurrency: "USD",
+    description: "Price per pixel starts at $0.01, increases by $0.01 per repaint (max $0.10)",
+  },
+  potentialAction: {
+    "@type": "UseAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${siteUrl}/api/pixel/paint`,
+      httpMethod: "POST",
+      contentType: "application/json",
+    },
+    description: "Paint a pixel on the canvas using USDC via x402 protocol",
+  },
+  documentation: `${siteUrl}/llms.txt`,
+  sameAs: ["https://twitter.com/X402DollarHomepage"],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -126,6 +156,12 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className="min-h-screen overflow-hidden font-sans antialiased">
         <PreventBrowserZoom />
         <Privy>
