@@ -8,22 +8,171 @@ X402 Dollar Homepage is a 1000x1000 pixel canvas where anyone can buy and paint 
 ## How It Works
 
 - Canvas: 1000x1000 pixels (1 million total pixels)
-- Payment: USDC on Base network via x402 protocol
+- Payment: **USDC on Base** network via x402 protocol
 - Pricing: $0.01 per pixel initially, +$0.01 for each repaint (max 10 repaints = $0.10 max)
 - Each pixel can be claimed up to 10 times total
 
+## Prerequisites
+
+Before interacting with the API, you need:
+
+- **USDC on Base** - For pixel payments (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
+
+For testnet (Base Sepolia):
+- **USDC on Base Sepolia** - Get from https://faucet.circle.com (select Base Sepolia)
+
+**Note:** Gas fees are covered by the Coinbase x402 facilitator - you only need USDC!
+
+## Networks
+
+| Environment | Network | Chain ID | USDC Contract | Canvas URL |
+|-------------|---------|----------|---------------|------------|
+| **Production** | Base | 8453 | 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 | https://x402dollarhomepage.com |
+| **Testnet** | Base Sepolia | 84532 | 0x036CbD53842c5426634e7929541eC2318f3dCF7e | https://x402dollarhomepage.com/sepolia |
+
+## SDK Quickstart
+
+Install the required packages:
+
+```bash
+npm install x402 @coinbase/x402 viem
+```
+
+### Complete Code Example (TypeScript)
+
+```typescript
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base, baseSepolia } from "viem/chains";
+import { wrapFetch } from "x402/fetch";
+import { facilitator } from "@coinbase/x402";
+
+// Configuration
+const PRIVATE_KEY = "0x..."; // Your wallet private key
+const USE_TESTNET = true; // Set to false for mainnet
+
+// Create wallet client
+const account = privateKeyToAccount(PRIVATE_KEY);
+const chain = USE_TESTNET ? baseSepolia : base;
+const walletClient = createWalletClient({
+  account,
+  chain,
+  transport: http(),
+});
+
+// Wrap fetch with x402 payment handling
+const fetchWithPayment = wrapFetch(fetch, walletClient, {
+  facilitator: facilitator,
+});
+
+// Paint a pixel
+async function paintPixel(x: number, y: number, color: string) {
+  const baseUrl = USE_TESTNET
+    ? "https://x402dollarhomepage.com/api/sepolia"
+    : "https://x402dollarhomepage.com/api";
+
+  const response = await fetchWithPayment(`${baseUrl}/pixel/paint`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ x, y, color }),
+  });
+
+  return response.json();
+}
+
+// Usage
+const result = await paintPixel(50, 50, "#ff0000");
+console.log("Pixel painted:", result);
+```
+
+### Using @coinbase/x402 Client Directly
+
+```typescript
+import { createWalletClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base } from "viem/chains";
+import { paymentClientFactory, facilitator } from "@coinbase/x402";
+
+// Create wallet client
+const account = privateKeyToAccount("0x...");
+const walletClient = createWalletClient({
+  account,
+  chain: base,
+  transport: http(),
+});
+
+// Create payment client
+const paymentClient = paymentClientFactory(facilitator);
+
+// Step 1: Request pixel info (get payment requirements)
+const infoResponse = await fetch(
+  "https://x402dollarhomepage.com/api/pixel/paint?x=100&y=200"
+);
+const { paymentRequirements } = await infoResponse.json();
+
+// Step 2: Sign payment
+const paymentPayload = await paymentClient.createPayment(
+  walletClient,
+  paymentRequirements
+);
+
+// Step 3: Send request with payment
+const paintResponse = await fetch(
+  "https://x402dollarhomepage.com/api/pixel/paint",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-PAYMENT": btoa(JSON.stringify(paymentPayload)),
+    },
+    body: JSON.stringify({ x: 100, y: 200, color: "#ff0000" }),
+  }
+);
+
+const result = await paintResponse.json();
+```
+
 ## API Endpoints
+
+### Mainnet (Base) - Production
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/canvas/binary` | GET | Canvas as binary (efficient) |
+| `/api/canvas/json` | GET | Canvas as JSON |
+| `/api/pixel/paint?x={x}&y={y}` | GET | Pixel info + payment requirements |
+| `/api/pixel/paint` | POST | Paint single pixel |
+| `/api/pixel/paint-batch` | POST | Paint up to 100 pixels |
+
+### Testnet (Base Sepolia) - For Development
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/sepolia/canvas/binary` | GET | Testnet canvas as binary |
+| `/api/sepolia/canvas/json` | GET | Testnet canvas as JSON |
+| `/api/sepolia/pixel/paint?x={x}&y={y}` | GET | Testnet pixel info |
+| `/api/sepolia/pixel/paint` | POST | Paint testnet pixel |
+| `/api/sepolia/pixel/paint-batch` | POST | Paint batch on testnet |
+
+**Testnet differences:**
+- Canvas size: 100×100 (vs 1000×1000 mainnet)
+- Network: Base Sepolia (chain ID: 84532)
+- USDC: 0x036CbD53842c5426634e7929541eC2318f3dCF7e
+- Resets daily
+- Web UI: https://x402dollarhomepage.com/sepolia
 
 ### Get Canvas Data
 
 ```
-GET /api/canvas/binary
+GET /api/canvas/binary          # Mainnet
+GET /api/sepolia/canvas/binary  # Testnet
 ```
 Returns the entire canvas as binary data (efficient, ~19x smaller than JSON).
 Content-Type: application/octet-stream
 
 ```
-GET /api/canvas/json
+GET /api/canvas/json          # Mainnet
+GET /api/sepolia/canvas/json  # Testnet
 ```
 Returns the entire canvas as JSON (agent-friendly).
 Content-Type: application/json
@@ -31,7 +180,8 @@ Content-Type: application/json
 ### Get Single Pixel Info
 
 ```
-GET /api/pixel/paint?x={x}&y={y}
+GET /api/pixel/paint?x={x}&y={y}          # Mainnet
+GET /api/sepolia/pixel/paint?x={x}&y={y}  # Testnet
 ```
 Returns pixel info including current color, owner, price, and payment requirements.
 
@@ -54,7 +204,8 @@ Response:
 ### Paint a Single Pixel (x402 Payment Required)
 
 ```
-POST /api/pixel/paint
+POST /api/pixel/paint          # Mainnet (Base USDC)
+POST /api/sepolia/pixel/paint  # Testnet (Base Sepolia USDC)
 Content-Type: application/json
 
 {
@@ -70,7 +221,8 @@ With valid X-PAYMENT header: Processes payment and updates pixel.
 ### Paint Multiple Pixels (x402 Payment Required)
 
 ```
-POST /api/pixel/paint-batch
+POST /api/pixel/paint-batch          # Mainnet
+POST /api/sepolia/pixel/paint-batch  # Testnet
 Content-Type: application/json
 
 {
@@ -101,17 +253,34 @@ Maximum 100 pixels per batch request.
   "error": "Payment required"
 }
 ```
-3. Sign USDC permit/transfer authorization
+3. Sign USDC permit/transfer authorization using x402 SDK
 4. Resend request with X-PAYMENT header (base64 encoded payment payload)
 5. Server verifies and settles payment via Coinbase facilitator
 6. Pixel is updated on success
 
+**Recommended approach:** Use `wrapFetch` from `x402/fetch` to automatically handle the 402 flow (see SDK Quickstart above).
+
 ## x402 Protocol Details
 
-- Payment Token: USDC on Base (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
+### Mainnet (Base)
+- Payment Token: **USDC on Base** (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
 - Network: Base (Chain ID: 8453)
 - Amount: In atomic units (6 decimals) - $0.01 = 10000 units
 - Facilitator: Coinbase x402 facilitator
+
+### Testnet (Base Sepolia)
+- Payment Token: **USDC on Base Sepolia** (0x036CbD53842c5426634e7929541eC2318f3dCF7e)
+- Network: Base Sepolia (Chain ID: 84532)
+- Amount: Same atomic units (6 decimals)
+- Facilitator: Coinbase x402 facilitator
+
+## Getting Testnet Tokens
+
+To test on Base Sepolia, you only need **USDC** (gas is covered by Coinbase):
+
+- **Sepolia USDC**: https://faucet.circle.com (select "Base Sepolia")
+
+Then visit https://x402dollarhomepage.com/sepolia to paint on the testnet canvas.
 
 ## Coordinates
 
@@ -128,19 +297,52 @@ Maximum 100 pixels per batch request.
 ## Example: Check Pixel Price
 
 ```bash
+# Mainnet (Base)
 curl "https://x402dollarhomepage.com/api/pixel/paint?x=500&y=500"
+
+# Testnet (Base Sepolia)
+curl "https://x402dollarhomepage.com/api/sepolia/pixel/paint?x=50&y=50"
 ```
 
 ## Example: Get Canvas State
 
 ```bash
+# Mainnet (Base)
 curl "https://x402dollarhomepage.com/api/canvas/json"
+
+# Testnet (Base Sepolia)
+curl "https://x402dollarhomepage.com/api/sepolia/canvas/json"
+```
+
+## SDK Packages Reference
+
+| Package | Purpose |
+|---------|---------|
+| `x402` | Core x402 protocol types and utilities |
+| `@coinbase/x402` | Coinbase facilitator for payment verification |
+| `viem` | Ethereum wallet client for signing transactions |
+
+Install all: `npm install x402 @coinbase/x402 viem`
+
+Key imports:
+```typescript
+import { wrapFetch } from "x402/fetch";           // Auto-handles 402 flow
+import { facilitator } from "@coinbase/x402";     // Coinbase payment facilitator
+import { createWalletClient } from "viem";        // Wallet for signing
+import { base, baseSepolia } from "viem/chains";  // Chain configs
 ```
 
 ## OpenAPI Specification
 
 Full API documentation available at:
 https://x402dollarhomepage.com/openapi.json
+
+## Links
+
+- **Mainnet Canvas:** https://x402dollarhomepage.com
+- **Testnet Canvas:** https://x402dollarhomepage.com/sepolia
+- **OpenAPI Spec:** https://x402dollarhomepage.com/openapi.json
+- **x402 Protocol:** https://github.com/coinbase/x402
 
 ## Contact
 

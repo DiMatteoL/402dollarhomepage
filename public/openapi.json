@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "X402 Dollar Homepage API",
-    "description": "API for the X402 Dollar Homepage - a 1000x1000 pixel canvas where you can buy and paint pixels using USDC via the x402 protocol.",
+    "description": "API for the X402 Dollar Homepage - a 1000x1000 pixel canvas where you can buy and paint pixels using USDC on Base via the x402 protocol.\n\n## Prerequisites\n\n**For Mainnet (Base):**\n- USDC on Base (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)\n\n**For Testnet (Base Sepolia):**\n- USDC on Base Sepolia (0x036CbD53842c5426634e7929541eC2318f3dCF7e) - Get from https://faucet.circle.com\n\n**Note:** Gas fees are covered by the Coinbase x402 facilitator - you only need USDC!\n\n## SDK Installation\n\n```bash\nnpm install x402 @coinbase/x402 viem\n```\n\n## Quick Start\n\n```typescript\nimport { wrapFetch } from 'x402/fetch';\nimport { facilitator } from '@coinbase/x402';\nimport { createWalletClient, http } from 'viem';\nimport { privateKeyToAccount } from 'viem/accounts';\nimport { base } from 'viem/chains';\n\nconst account = privateKeyToAccount('0x...');\nconst walletClient = createWalletClient({ account, chain: base, transport: http() });\nconst fetchWithPayment = wrapFetch(fetch, walletClient, { facilitator });\n\nconst response = await fetchWithPayment('https://x402dollarhomepage.com/api/pixel/paint', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ x: 100, y: 200, color: '#ff0000' })\n});\n```",
     "version": "1.0.0",
     "contact": {
       "name": "X402 Dollar Homepage",
@@ -16,7 +16,11 @@
   "servers": [
     {
       "url": "https://x402dollarhomepage.com",
-      "description": "Production server"
+      "description": "Production server (Base mainnet - uses USDC on Base)"
+    },
+    {
+      "url": "https://x402dollarhomepage.com",
+      "description": "Testnet server (Base Sepolia - use /api/sepolia/* endpoints)"
     }
   ],
   "paths": {
@@ -285,6 +289,191 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BatchClaimLimitError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sepolia/canvas/binary": {
+      "get": {
+        "operationId": "getSepoliaCanvasBinary",
+        "summary": "[TESTNET] Get canvas as binary data",
+        "description": "Returns the testnet 100x100 pixel canvas as efficient binary data. Uses Base Sepolia USDC (0x036CbD53842c5426634e7929541eC2318f3dCF7e). Canvas resets daily.",
+        "tags": ["Testnet"],
+        "responses": {
+          "200": {
+            "description": "Binary canvas data",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sepolia/canvas/json": {
+      "get": {
+        "operationId": "getSepoliaCanvasJson",
+        "summary": "[TESTNET] Get canvas as JSON",
+        "description": "Returns the testnet canvas as JSON. 100x100 canvas on Base Sepolia. Get testnet USDC from https://faucet.circle.com (gas is covered by Coinbase).",
+        "tags": ["Testnet"],
+        "responses": {
+          "200": {
+            "description": "Canvas data in JSON format",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CanvasResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sepolia/pixel/paint": {
+      "get": {
+        "operationId": "getSepoliaPixelInfo",
+        "summary": "[TESTNET] Get pixel information",
+        "description": "Returns testnet pixel info with Base Sepolia payment requirements. Coordinates 0-99.",
+        "tags": ["Testnet"],
+        "parameters": [
+          {
+            "name": "x",
+            "in": "query",
+            "required": true,
+            "description": "X coordinate (0-99)",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            }
+          },
+          {
+            "name": "y",
+            "in": "query",
+            "required": true,
+            "description": "Y coordinate (0-99)",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 99
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pixel information with testnet payment requirements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SepoliaPixelInfoResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "paintSepoliaPixel",
+        "summary": "[TESTNET] Paint a pixel on Base Sepolia",
+        "description": "Paint a pixel on the testnet canvas. Requires Base Sepolia USDC (gas is covered by Coinbase). Get testnet USDC from https://faucet.circle.com (select Base Sepolia).",
+        "tags": ["Testnet"],
+        "parameters": [
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 payment payload (Base Sepolia USDC)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SepoliaPaintPixelRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pixel painted successfully on testnet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SepoliaPaintPixelResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required - returns Base Sepolia USDC payment requirements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SepoliaPaymentRequiredResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sepolia/pixel/paint-batch": {
+      "post": {
+        "operationId": "paintSepoliaPixelBatch",
+        "summary": "[TESTNET] Paint multiple pixels on Base Sepolia",
+        "description": "Paint up to 100 pixels on the testnet canvas. Uses Base Sepolia USDC.",
+        "tags": ["Testnet"],
+        "parameters": [
+          {
+            "name": "X-PAYMENT",
+            "in": "header",
+            "required": false,
+            "description": "Base64-encoded x402 payment payload",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SepoliaPaintBatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pixels painted successfully on testnet",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaintBatchResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SepoliaPaymentRequiredResponse"
                 }
               }
             }
@@ -625,21 +814,188 @@
             }
           }
         }
+      },
+      "SepoliaPixelInfoResponse": {
+        "type": "object",
+        "properties": {
+          "testnet": {
+            "type": "boolean",
+            "example": true
+          },
+          "network": {
+            "type": "string",
+            "example": "base-sepolia"
+          },
+          "pixel": {
+            "$ref": "#/components/schemas/Pixel"
+          },
+          "maxClaims": {
+            "type": "integer",
+            "example": 10
+          },
+          "paymentRequirements": {
+            "$ref": "#/components/schemas/SepoliaPaymentRequirements"
+          }
+        }
+      },
+      "SepoliaPaymentRequirements": {
+        "type": "object",
+        "description": "x402 payment requirements for Base Sepolia testnet",
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": ["exact"]
+          },
+          "network": {
+            "type": "string",
+            "example": "base-sepolia",
+            "description": "Base Sepolia testnet (chain ID: 84532)"
+          },
+          "maxAmountRequired": {
+            "type": "string",
+            "description": "Amount in atomic units (6 decimals for USDC)",
+            "example": "10000"
+          },
+          "asset": {
+            "type": "string",
+            "description": "Base Sepolia USDC contract address",
+            "example": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+          },
+          "payTo": {
+            "type": "string",
+            "description": "Recipient wallet address"
+          }
+        }
+      },
+      "SepoliaPaintPixelRequest": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "integer",
+            "description": "X coordinate (0-99 for testnet)",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "y": {
+            "type": "integer",
+            "description": "Y coordinate (0-99 for testnet)",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "color": {
+            "type": "string",
+            "description": "Hex color code",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "example": "#ff0000"
+          }
+        },
+        "required": ["x", "y", "color"]
+      },
+      "SepoliaPaintPixelResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "testnet": {
+            "type": "boolean",
+            "example": true
+          },
+          "pixel": {
+            "$ref": "#/components/schemas/Pixel"
+          },
+          "settlement": {
+            "type": "object",
+            "properties": {
+              "transaction": {
+                "type": "string"
+              },
+              "network": {
+                "type": "string",
+                "example": "base-sepolia"
+              }
+            }
+          }
+        }
+      },
+      "SepoliaPaymentRequiredResponse": {
+        "type": "object",
+        "properties": {
+          "x402Version": {
+            "type": "integer",
+            "example": 1
+          },
+          "accepts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SepoliaPaymentRequirements"
+            }
+          },
+          "error": {
+            "type": "string",
+            "example": "Payment required"
+          },
+          "testnet": {
+            "type": "boolean",
+            "example": true
+          },
+          "network": {
+            "type": "string",
+            "example": "base-sepolia"
+          }
+        }
+      },
+      "SepoliaPaintBatchRequest": {
+        "type": "object",
+        "properties": {
+          "pixels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SepoliaPaintPixelRequest"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "description": "Array of pixels to paint on testnet (max 100)"
+          }
+        },
+        "required": ["pixels"]
       }
     }
   },
   "tags": [
     {
       "name": "Canvas",
-      "description": "Operations for retrieving the full canvas state"
+      "description": "Operations for retrieving the full canvas state (mainnet - Base USDC)"
     },
     {
       "name": "Pixel",
-      "description": "Operations for reading and painting individual pixels"
+      "description": "Operations for reading and painting individual pixels (mainnet - Base USDC)"
+    },
+    {
+      "name": "Testnet",
+      "description": "Testnet operations on Base Sepolia. 100x100 canvas that resets daily. Get testnet USDC from https://faucet.circle.com (select Base Sepolia). Gas is covered by Coinbase! Web UI: https://x402dollarhomepage.com/sepolia"
     }
   ],
   "externalDocs": {
     "description": "AI Agent Documentation (llms.txt)",
     "url": "https://x402dollarhomepage.com/llms.txt"
+  },
+  "x-sdk-packages": {
+    "description": "Required npm packages for x402 payment signing",
+    "packages": [
+      {
+        "name": "x402",
+        "description": "Core x402 protocol types, utilities, and wrapFetch for automatic 402 handling"
+      },
+      {
+        "name": "@coinbase/x402",
+        "description": "Coinbase facilitator for payment verification and settlement"
+      },
+      {
+        "name": "viem",
+        "description": "Ethereum wallet client for transaction signing"
+      }
+    ],
+    "install": "npm install x402 @coinbase/x402 viem"
   }
 }
