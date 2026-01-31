@@ -331,15 +331,28 @@ For Base Sepolia testnet, use `"network": "base-sepolia"` instead.
 
 ## x402 Protocol Details
 
+### Network Identifier Format
+
+**Important:** This API uses short network names, NOT the eip155 format:
+
+| This API uses | NOT the spec format |
+|---------------|---------------------|
+| `"base"` | `"eip155:8453"` |
+| `"base-sepolia"` | `"eip155:84532"` |
+
+If using `@x402/evm` with `ExactEvmScheme`, you may need to convert:
+- SDK expects: `"eip155:8453"`
+- Server returns/expects: `"base"`
+
 ### Mainnet (Base)
 - Payment Token: **USDC on Base** (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
-- Network: Base (Chain ID: 8453)
+- Network: `"base"` (Chain ID: 8453)
 - Amount: In atomic units (6 decimals) - $0.01 = 10000 units
 - Facilitator: Coinbase x402 facilitator
 
 ### Testnet (Base Sepolia)
 - Payment Token: **USDC on Base Sepolia** (0x036CbD53842c5426634e7929541eC2318f3dCF7e)
-- Network: Base Sepolia (Chain ID: 84532)
+- Network: `"base-sepolia"` (Chain ID: 84532)
 - Amount: Same atomic units (6 decimals)
 - Facilitator: Coinbase x402 facilitator
 
@@ -365,23 +378,47 @@ Then visit https://x402dollarhomepage.com/sepolia to paint on the testnet canvas
 
 **Pro tip:** Batch painting is much more efficient! Instead of 100 separate transactions, paint 100 pixels with a single payment.
 
-## Example: Check Pixel Price
+## Test the Payment Flow (curl examples)
+
+### Step 1: Get payment requirements (triggers 402)
 
 ```bash
-# Mainnet (Base)
+# Testnet - safe to experiment!
+curl -X POST https://x402dollarhomepage.com/api/sepolia/pixel/paint \
+  -H "Content-Type: application/json" \
+  -d '{"x":50,"y":50,"color":"#ff0000"}'
+
+# Returns 402 with payment requirements:
+# {
+#   "x402Version": 1,
+#   "accepts": [{
+#     "scheme": "exact",
+#     "network": "base-sepolia",
+#     "maxAmountRequired": "10000",
+#     "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+#     ...
+#   }],
+#   "error": "Payment required"
+# }
+```
+
+### Step 2: Check pixel info (GET request)
+
+```bash
+# Mainnet
 curl "https://x402dollarhomepage.com/api/pixel/paint?x=500&y=500"
 
-# Testnet (Base Sepolia)
+# Testnet
 curl "https://x402dollarhomepage.com/api/sepolia/pixel/paint?x=50&y=50"
 ```
 
-## Example: Get Canvas State
+### Step 3: Get canvas state
 
 ```bash
-# Mainnet (Base)
+# Mainnet
 curl "https://x402dollarhomepage.com/api/canvas/json"
 
-# Testnet (Base Sepolia)
+# Testnet
 curl "https://x402dollarhomepage.com/api/sepolia/canvas/json"
 ```
 
@@ -389,12 +426,13 @@ curl "https://x402dollarhomepage.com/api/sepolia/canvas/json"
 
 | Package | Purpose |
 |---------|---------|
-| `x402` | Core x402 protocol types and utilities |
+| `x402` | Core x402 protocol types, utilities, and `wrapFetch` |
 | `@coinbase/x402` | Coinbase facilitator for payment verification |
-| `@x402/evm` | EVM payment creation (note: requires manual scheme/network addition) |
+| `@x402/evm` | EVM payment creation with `ExactEvmScheme` (requires manual scheme/network) |
+| `@x402/fetch` | Alternative fetch wrapper (similar to `x402/fetch`) |
 | `viem` | Ethereum wallet client for signing transactions |
 
-Install all: `npm install x402 @coinbase/x402 viem`
+Install all: `npm install x402 @coinbase/x402 @x402/evm viem`
 
 Key imports:
 ```typescript
@@ -407,6 +445,57 @@ import { base, baseSepolia } from "viem/chains";  // Chain configs
 
 **Tip:** Use `wrapFetch` when possible - it handles the full 402 flow automatically. Only use `@x402/evm` directly if you need more control (and remember to add `scheme` + `network` to the payload).
 
+### Alternative: Using ExactEvmScheme (@x402/evm)
+
+```typescript
+import { ExactEvmScheme } from "@x402/evm";
+import { privateKeyToAccount } from "viem/accounts";
+
+const account = privateKeyToAccount("0xYOUR_PRIVATE_KEY");
+const scheme = new ExactEvmScheme(account);
+
+// Step 1: Get payment requirements (402 response)
+const res = await fetch("https://x402dollarhomepage.com/api/sepolia/pixel/paint", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ x: 50, y: 50, color: "#ff0000" }),
+});
+const { accepts } = await res.json();
+const requirements = accepts[0];
+
+// Step 2: Create payment (SDK needs eip155:chainId format)
+const sdkPayload = await scheme.createPaymentPayload(1, {
+  ...requirements,
+  network: "eip155:84532",  // SDK format (84532 = Base Sepolia)
+  amount: requirements.maxAmountRequired,
+});
+
+// Step 3: Wrap with scheme + network (REQUIRED for v1!)
+const payload = {
+  x402Version: 1,
+  scheme: "exact",
+  network: requirements.network,  // Use original: "base-sepolia"
+  payload: sdkPayload.payload,
+};
+
+// Step 4: Send with payment
+const encoded = btoa(JSON.stringify(payload));
+const paintRes = await fetch("https://x402dollarhomepage.com/api/sepolia/pixel/paint", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-PAYMENT": encoded,
+  },
+  body: JSON.stringify({ x: 50, y: 50, color: "#ff0000" }),
+});
+
+console.log(await paintRes.json());
+```
+
+**Network format conversion:**
+- Base mainnet: SDK needs `"eip155:8453"`, server uses `"base"`
+- Base Sepolia: SDK needs `"eip155:84532"`, server uses `"base-sepolia"`
+
 ## OpenAPI Specification
 
 Full API documentation available at:
@@ -418,6 +507,8 @@ https://x402dollarhomepage.com/openapi.json
 - **Testnet Canvas:** https://x402dollarhomepage.com/sepolia
 - **OpenAPI Spec:** https://x402dollarhomepage.com/openapi.json
 - **x402 Protocol:** https://github.com/coinbase/x402
+- **x402 SDK Examples:** https://github.com/coinbase/x402/tree/main/examples
+- **Circle USDC Faucet:** https://faucet.circle.com (for testnet)
 
 ## Contact
 
