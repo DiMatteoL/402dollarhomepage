@@ -28,6 +28,16 @@ const X402_VERSION = 1;
 // USDC on Base Sepolia
 const SEPOLIA_USDC_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
 
+// Warning icon component
+function WarningIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-2h2v2h-2zm0-4V7h2v6h-2z" />
+    </svg>
+  );
+}
+
+// Wallet section for disconnected users - matching mainnet styling
 function WalletDisconnected({
   onConnect,
   isLinkMode = false,
@@ -36,27 +46,33 @@ function WalletDisconnected({
   isLinkMode?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-4">
       <div className="flex items-start gap-4">
-        <div className="h-14 w-14 flex-shrink-0 rounded-full bg-orange-500/20 flex items-center justify-center">
-          <span className="text-2xl">🧪</span>
-        </div>
+        <img
+          src="/usdc_base.png"
+          alt="USDC on Base"
+          className="h-14 w-14 flex-shrink-0"
+        />
 
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-sm text-[var(--color-text-primary)] mb-1">
             {isLinkMode
               ? "Link a wallet to continue"
-              : "Connect to test on Sepolia"}
+              : "Connect to claim your pixels"}
           </h3>
           <p className="text-xs text-[var(--color-text-muted)] leading-relaxed">
-            This is a <span className="text-orange-400 font-medium">testnet</span>.
-            Pixels are paid with testnet USDC on Base Sepolia.
+            Pixels are paid with{" "}
+            <span className="text-[#2775CA] font-medium">USDC</span> on{" "}
+            <span className="text-[#0052FF] font-medium">Base Sepolia</span>.{" "}
+            {isLinkMode
+              ? "Link a wallet to get started."
+              : "Connect your wallet to get started."}
           </p>
         </div>
       </div>
 
       <button
-        className="mt-3 w-full rounded-lg border border-orange-500 bg-orange-500/10 px-4 py-2.5 font-medium text-sm text-orange-400 transition-all hover:bg-orange-500/20"
+        className="mt-3 w-full rounded-lg border border-[var(--color-accent-cyan)] bg-[var(--color-accent-cyan)]/10 px-4 py-2.5 font-medium text-sm text-[var(--color-accent-cyan)] transition-all hover:bg-[var(--color-accent-cyan)]/20 hover:shadow-[0_0_15px_rgba(0,255,255,0.2)]"
         onClick={onConnect}
         type="button"
       >
@@ -66,6 +82,7 @@ function WalletDisconnected({
   );
 }
 
+// Wallet section for connected users - matching mainnet styling
 function WalletConnected({
   walletAddress,
   balance,
@@ -81,55 +98,84 @@ function WalletConnected({
 }) {
   const balanceNum = balance ? parseFloat(balance) : 0;
   const requiredNum = parseFloat(requiredAmount);
-  const hasEnough = balanceNum >= requiredNum;
+  const hasInsufficientBalance =
+    !balanceLoading && balance !== null && balanceNum < requiredNum;
 
   return (
-    <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full bg-orange-500 animate-pulse" />
-          <span className="font-mono text-xs text-[var(--color-text-secondary)]">
-            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-3">
+      <div className="space-y-2 text-sm">
+        {/* Wallet address row */}
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--color-text-muted)]">Wallet</span>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[var(--color-accent-cyan)]">
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+            <button
+              className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-accent-orange)] transition-colors underline underline-offset-2"
+              onClick={onDisconnect}
+              type="button"
+            >
+              Disconnect
+            </button>
+          </div>
+        </div>
+
+        {/* Balance row */}
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--color-text-muted)]">Available</span>
+          <div className="flex items-center gap-1.5">
+            {balanceLoading ? (
+              <div className="h-4 w-16 animate-pulse rounded bg-[var(--color-bg-hover)]" />
+            ) : balance !== null ? (
+              <span
+                className={`font-mono ${
+                  hasInsufficientBalance
+                    ? "text-[var(--color-accent-orange)]"
+                    : "text-[var(--color-text-primary)]"
+                }`}
+              >
+                ${parseFloat(balance).toFixed(2)}{" "}
+                <span className="text-[var(--color-text-muted)]">USDC</span>
+              </span>
+            ) : (
+              <span className="text-[var(--color-text-muted)]">--</span>
+            )}
+            {hasInsufficientBalance && (
+              <div className="group relative">
+                <WarningIcon className="h-4 w-4 text-[var(--color-accent-orange)] cursor-help" />
+                <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50">
+                  <div className="w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-3 shadow-xl text-xs">
+                    <p className="font-semibold text-[var(--color-accent-orange)] mb-1">
+                      Insufficient USDC
+                    </p>
+                    <p className="text-[var(--color-text-muted)] leading-relaxed">
+                      Get testnet USDC from a faucet for Base Sepolia.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Amount row */}
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--color-text-muted)]">Total</span>
+          <span className="font-mono text-[var(--color-text-primary)]">
+            ${requiredAmount}{" "}
+            <span className="text-[var(--color-text-muted)]">USDC</span>
           </span>
         </div>
-        <button
-          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
-          onClick={onDisconnect}
-          type="button"
-        >
-          Disconnect
-        </button>
-      </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--color-text-muted)]">
-          Testnet USDC Balance:
-        </span>
-        <span
-          className={`font-mono text-sm ${
-            balanceLoading
-              ? "text-[var(--color-text-muted)]"
-              : hasEnough
-              ? "text-orange-400"
-              : "text-red-400"
-          }`}
-        >
-          {balanceLoading ? "Loading..." : `$${parseFloat(balance ?? "0").toFixed(2)}`}
-        </span>
-      </div>
-
-      {!balanceLoading && !hasEnough && (
-        <div className="mt-2 rounded-md bg-red-500/10 border border-red-500/30 p-2">
-          <p className="text-xs text-red-400">
-            Insufficient testnet USDC. Get some from a faucet.
-          </p>
+        {/* Network row */}
+        <div className="flex items-center justify-between">
+          <span className="text-[var(--color-text-muted)]">Network</span>
+          <span className="flex items-center gap-1.5 text-[var(--color-text-primary)]">
+            <span className="h-2 w-2 rounded-full bg-[#0052FF]" />
+            Base Sepolia (Testnet)
+          </span>
         </div>
-      )}
-
-      <div className="mt-2 rounded-md bg-orange-500/10 border border-orange-500/30 p-2">
-        <p className="text-xs text-orange-400">
-          🧪 Base Sepolia Testnet
-        </p>
       </div>
     </div>
   );
@@ -141,19 +187,32 @@ export function SepoliaClaimModal({
   onClose,
   onSuccess,
 }: SepoliaClaimModalProps) {
-  const { authenticated, login, logout, user, ready: privyReady } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready: privyReady, authenticated, login, logout } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
   const { linkWallet } = useLinkAccount();
 
   const [paymentState, setPaymentState] = useState<PaymentState>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
 
-  // Get active wallet
-  const activeWallet = wallets.find((w) => w.walletClientType !== "privy");
-  const walletAddress = activeWallet?.address ?? user?.wallet?.address;
-  const hasLinkedExternalWallet = !!activeWallet;
+  // Get the first connected wallet
+  const activeWallet = wallets[0];
+  const walletAddress = activeWallet?.address ?? null;
+
+  const pixelCount = pendingPixels.size;
+  const priceString = totalPrice.toFixed(2);
+
+  // Calculate breakdown for display
+  const pixels = Array.from(pendingPixels.values());
+  const newClaims = pixels.filter((p) => p.updateCount === 0);
+  const reclaims = pixels.filter((p) => p.updateCount > 0);
+  const nearMaxPixels = pixels.filter((p) => p.updateCount >= 9);
+  const newClaimsPrice = newClaims.length * 0.01;
+  const reclaimsPrice = reclaims.reduce(
+    (sum, p) => sum + 0.01 * (p.updateCount + 1),
+    0
+  );
 
   // Fetch USDC balance on Sepolia using public RPC
   useEffect(() => {
@@ -167,8 +226,6 @@ export function SepoliaClaimModal({
       try {
         setBalanceLoading(true);
 
-        // Use public client with Base Sepolia RPC to read balance
-        // This works regardless of which chain the wallet is connected to
         const publicClient = createPublicClient({
           chain: baseSepolia,
           transport: http(),
@@ -201,13 +258,34 @@ export function SepoliaClaimModal({
     void fetchBalance();
   }, [walletAddress]);
 
+  // Global ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && paymentState === "idle") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, paymentState]);
+
+  // Cancel handler
+  const handleCancel = useCallback(() => {
+    setPaymentState("idle");
+    setError(null);
+    onClose();
+  }, [onClose]);
+
   const handleClaim = useCallback(async () => {
-    if (!activeWallet || !walletAddress) return;
+    if (!walletAddress || !activeWallet || pendingPixels.size === 0) {
+      setError("Please connect your wallet first");
+      return;
+    }
+
+    setError(null);
+    setPaymentState("preparing");
 
     try {
-      setPaymentState("preparing");
-      setErrorMessage(null);
-
       // Switch to Base Sepolia
       await activeWallet.switchChain(baseSepolia.id);
 
@@ -217,20 +295,23 @@ export function SepoliaClaimModal({
         y: p.y,
         color: p.newColor,
       }));
+      const body = { pixels: pixelsArray };
 
       // Get payment requirements from sepolia endpoint
-      const requirementsRes = await fetch("/api/sepolia/pixel/paint-batch", {
+      const res = await fetch("/api/sepolia/pixel/paint-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pixels: pixelsArray }),
+        body: JSON.stringify(body),
       });
 
-      if (requirementsRes.status !== 402) {
-        throw new Error(`Unexpected response: ${requirementsRes.status}`);
+      if (res.status !== 402) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Unexpected response");
       }
 
-      const { accepts } = await requirementsRes.json();
-      const requirements: PaymentRequirements = accepts[0];
+      const paymentData = await res.json();
+      const requirements: PaymentRequirements = paymentData.accepts?.[0];
+      if (!requirements) throw new Error("No payment options available");
 
       // Sign payment
       setPaymentState("signing");
@@ -242,16 +323,14 @@ export function SepoliaClaimModal({
         transport: custom(provider),
       }).extend(publicActions);
 
-      // Prepare unsigned payment header
       const unsigned = preparePaymentHeader(
         walletAddress as `0x${string}`,
         X402_VERSION,
         requirements
       );
 
-      // Sign the payment header
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const signedPayment = await signPaymentHeader(
+      const paymentHeader = await signPaymentHeader(
         walletClient as any,
         requirements,
         unsigned
@@ -260,149 +339,327 @@ export function SepoliaClaimModal({
       // Submit with payment
       setPaymentState("submitting");
 
-      const paymentRes = await fetch("/api/sepolia/pixel/paint-batch", {
+      const payRes = await fetch("/api/sepolia/pixel/paint-batch", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-PAYMENT": signedPayment,
+          "X-PAYMENT": paymentHeader,
         },
-        body: JSON.stringify({ pixels: pixelsArray }),
+        body: JSON.stringify(body),
       });
 
-      if (!paymentRes.ok) {
-        const error = await paymentRes.json();
-        throw new Error(error.error || error.reason || "Payment failed");
+      const result = await payRes.json().catch(() => ({}));
+
+      if (!payRes.ok) {
+        throw new Error(result.error ?? result.reason ?? "Payment failed");
       }
 
       setPaymentState("success");
 
-      // Wait briefly then close
+      // Close modal and notify parent after a brief delay
       setTimeout(() => {
         onSuccess();
         onClose();
       }, 1500);
-    } catch (err) {
-      console.error("Sepolia claim error:", err);
-      setPaymentState("error");
-      setErrorMessage(err instanceof Error ? err.message : "Unknown error");
-    }
-  }, [activeWallet, walletAddress, pendingPixels, onSuccess, onClose]);
+    } catch (err: unknown) {
+      // Handle wallet rejection gracefully
+      const errorMessage =
+        err instanceof Error ? err.message.toLowerCase() : "";
+      if (
+        errorMessage.includes("rejected") ||
+        errorMessage.includes("denied") ||
+        errorMessage.includes("cancelled") ||
+        errorMessage.includes("canceled") ||
+        errorMessage.includes("user refused")
+      ) {
+        setPaymentState("idle");
+        return;
+      }
 
-  const pixelCount = pendingPixels.size;
-  const requiredAmount = totalPrice.toFixed(2);
+      console.error("[sepolia] Payment error:", err);
+      setError(err instanceof Error ? err.message : "Payment failed");
+      setPaymentState("error");
+    }
+  }, [pendingPixels, walletAddress, activeWallet, onSuccess, onClose]);
+
+  const isWalletConnected = authenticated && !!walletAddress;
   const balanceNum = balance ? parseFloat(balance) : 0;
-  const hasEnoughBalance = balanceNum >= totalPrice;
-  const canClaim =
-    authenticated &&
-    hasLinkedExternalWallet &&
-    hasEnoughBalance &&
-    paymentState === "idle";
+  const hasInsufficientBalance =
+    !balanceLoading && balance !== null && balanceNum < totalPrice;
+  const isProcessing =
+    paymentState === "preparing" ||
+    paymentState === "signing" ||
+    paymentState === "submitting";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      aria-labelledby="claim-modal-title"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+    >
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
+      <button
+        aria-label="Close modal"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={handleCancel}
+        type="button"
       />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md rounded-xl border border-orange-500/30 bg-[var(--color-bg-primary)] shadow-2xl">
+      <div className="relative w-full max-w-md animate-fade-in rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-5 shadow-2xl">
+        {/* Close button */}
+        <button
+          aria-label="Close"
+          className="absolute top-3 right-3 text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-primary)]"
+          onClick={handleCancel}
+          type="button"
+        >
+          ✕
+        </button>
+
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-orange-500/20 px-6 py-4">
-          <div>
-            <h2 className="font-bold text-lg text-[var(--color-text-primary)]">
-              Claim Pixels
-            </h2>
-            <p className="text-xs text-orange-400">
-              🧪 Sepolia Testnet (100x100)
-            </p>
-          </div>
-          <button
-            className="rounded-lg p-2 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
-            onClick={onClose}
-            type="button"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="mb-4">
+          <h2 className="font-bold text-lg" id="claim-modal-title">
+            Claim{" "}
+            <span className="text-[var(--color-accent-cyan)]">
+              {pixelCount} pixel{pixelCount !== 1 ? "s" : ""}
+            </span>
+          </h2>
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">
+            Your painted pixels will be saved to the canvas
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* Summary */}
-          <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-[var(--color-text-muted)]">Pixels</span>
-              <span className="font-mono text-sm text-[var(--color-text-primary)]">
-                {pixelCount}
+        {/* Pixel preview - show a sample of colors */}
+        <div className="mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            {Array.from(pendingPixels.values())
+              .slice(0, 10)
+              .map((p) => (
+                <div
+                  key={`${p.x}-${p.y}`}
+                  className="h-6 w-6 rounded border border-[var(--color-border)]"
+                  style={{ backgroundColor: p.newColor }}
+                  title={`(${p.x}, ${p.y})`}
+                />
+              ))}
+            {pendingPixels.size > 10 && (
+              <span className="text-xs text-[var(--color-text-muted)]">
+                +{pendingPixels.size - 10} more
               </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--color-text-muted)]">Total</span>
-              <span className="font-bold text-lg text-orange-400">
-                ${requiredAmount}
-              </span>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Wallet Section */}
+        {/* Price breakdown */}
+        <div className="mb-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] p-3 space-y-2">
+          {/* New claims row */}
+          {newClaims.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--color-text-muted)]">
+                {newClaims.length} new pixel{newClaims.length !== 1 ? "s" : ""}
+              </span>
+              <span className="font-mono text-[var(--color-text-secondary)]">
+                ${newClaimsPrice.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Reclaims row */}
+          {reclaims.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[var(--color-accent-orange)]">
+                {reclaims.length} reclaim{reclaims.length !== 1 ? "s" : ""}
+              </span>
+              <span className="font-mono text-[var(--color-accent-orange)]">
+                ${reclaimsPrice.toFixed(2)}
+              </span>
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="border-t border-[var(--color-border)]" />
+
+          {/* Total row */}
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-[var(--color-text-primary)]">
+              Total
+            </span>
+            <span className="font-bold text-lg text-[var(--color-accent-green)]">
+              ${priceString}{" "}
+              <span className="text-xs font-normal text-[var(--color-text-muted)]">
+                USDC
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Warning for pixels near max */}
+        {nearMaxPixels.length > 0 && (
+          <div className="mb-4 rounded-lg border border-[var(--color-accent-orange)]/30 bg-[var(--color-accent-orange)]/5 px-3 py-2">
+            <p className="text-xs text-[var(--color-accent-orange)]">
+              ⚠️ {nearMaxPixels.length} pixel
+              {nearMaxPixels.length !== 1 ? "s are" : " is"} at 9/10 claims —
+              this will be the last time
+              {nearMaxPixels.length !== 1 ? " they" : " it"} can be claimed!
+            </p>
+          </div>
+        )}
+
+        {/* Testnet indicator */}
+        <div className="mb-4 rounded-lg border border-orange-500/30 bg-orange-500/5 px-3 py-2">
+          <p className="text-xs text-orange-400 flex items-center gap-2">
+            <span>🧪</span>
+            <span>Sepolia Testnet • Canvas resets daily at midnight UTC</span>
+          </p>
+        </div>
+
+        {/* Wallet section */}
+        <div className="mb-4">
           {!privyReady ? (
-            <div className="h-24 animate-pulse rounded-lg bg-[var(--color-bg-secondary)]" />
+            <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
+            </div>
           ) : !authenticated ? (
             <WalletDisconnected onConnect={login} />
-          ) : !hasLinkedExternalWallet ? (
-            <WalletDisconnected onConnect={linkWallet} isLinkMode />
-          ) : (
+          ) : !walletsReady ? (
+            <div className="flex h-20 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)]">
+              <div className="flex items-center gap-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-accent-cyan)] border-t-transparent" />
+                <span className="text-sm text-[var(--color-text-muted)]">
+                  Loading wallet...
+                </span>
+              </div>
+            </div>
+          ) : isWalletConnected ? (
             <WalletConnected
-              walletAddress={walletAddress ?? ""}
+              walletAddress={walletAddress}
               balance={balance}
               balanceLoading={balanceLoading}
-              requiredAmount={requiredAmount}
+              requiredAmount={priceString}
               onDisconnect={logout}
             />
+          ) : (
+            <WalletDisconnected onConnect={linkWallet} isLinkMode />
           )}
+        </div>
 
-          {/* Error */}
-          {errorMessage && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-              <p className="text-sm text-red-400">{errorMessage}</p>
-            </div>
-          )}
-
-          {/* Success */}
-          {paymentState === "success" && (
-            <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
-              <p className="text-sm text-green-400">
-                Testnet pixels claimed successfully!
-              </p>
-            </div>
-          )}
-
-          {/* Claim Button */}
-          <button
-            className={`w-full rounded-lg px-4 py-3 font-semibold text-sm transition-all ${
-              canClaim
-                ? "bg-orange-500 text-white hover:bg-orange-600"
-                : "bg-[var(--color-bg-tertiary)] text-[var(--color-text-muted)] cursor-not-allowed"
-            }`}
-            disabled={!canClaim}
-            onClick={handleClaim}
-            type="button"
+        {/* Error message */}
+        {error && (
+          <div
+            className="mb-3 rounded-lg border border-[var(--color-accent-orange)] bg-[var(--color-accent-orange)]/10 px-3 py-2 text-[var(--color-accent-orange)] text-xs"
+            role="alert"
           >
-            {paymentState === "preparing" && "Preparing..."}
-            {paymentState === "signing" && "Sign in wallet..."}
-            {paymentState === "submitting" && "Submitting..."}
-            {paymentState === "success" && "Success!"}
-            {paymentState === "error" && "Try Again"}
-            {paymentState === "idle" && `Claim ${pixelCount} Pixel${pixelCount !== 1 ? "s" : ""}`}
-          </button>
+            {error}
+          </div>
+        )}
 
-          {/* Testnet notice */}
-          <p className="text-center text-xs text-[var(--color-text-muted)]">
-            Canvas resets daily at midnight UTC
-          </p>
+        {/* Payment status */}
+        {isProcessing && (
+          <output className="mb-3 block rounded-lg px-3 py-2.5 bg-[var(--color-bg-tertiary)]">
+            <div className="flex items-center gap-3">
+              <div className="relative flex h-6 w-6 items-center justify-center">
+                <div
+                  className={`absolute inset-0 rounded-full border-2 ${
+                    paymentState === "signing"
+                      ? "border-[var(--color-accent-magenta)]/30"
+                      : "border-[var(--color-accent-cyan)]/30"
+                  }`}
+                />
+                <div
+                  className={`absolute inset-0 rounded-full border-2 border-t-transparent animate-spin ${
+                    paymentState === "signing"
+                      ? "border-[var(--color-accent-magenta)]"
+                      : "border-[var(--color-accent-cyan)]"
+                  }`}
+                />
+              </div>
+              <div className="flex-1">
+                <span
+                  className={`text-sm font-medium ${
+                    paymentState === "signing"
+                      ? "text-[var(--color-accent-magenta)]"
+                      : "text-[var(--color-text-secondary)]"
+                  }`}
+                >
+                  {paymentState === "preparing" && "Preparing..."}
+                  {paymentState === "signing" && "Authorizing..."}
+                  {paymentState === "submitting" && "Claiming pixels..."}
+                </span>
+                {paymentState === "signing" && (
+                  <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">
+                    Please confirm in your wallet
+                  </p>
+                )}
+              </div>
+            </div>
+          </output>
+        )}
+
+        {/* Success state */}
+        {paymentState === "success" && (
+          <output className="mb-3 block rounded-lg px-3 py-2.5 bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/30">
+            <div className="flex items-center gap-3">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-accent-green)]">
+                <svg
+                  className="h-4 w-4 text-black"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-[var(--color-accent-green)]">
+                Pixels claimed successfully!
+              </span>
+            </div>
+          </output>
+        )}
+
+        {/* Action buttons */}
+        {isWalletConnected && paymentState !== "success" && (
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary flex-1 py-2.5 text-sm"
+              onClick={handleCancel}
+              disabled={isProcessing}
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-primary flex-1 py-2.5 text-sm"
+              disabled={isProcessing || hasInsufficientBalance}
+              onClick={handleClaim}
+              type="button"
+            >
+              {isProcessing
+                ? paymentState === "signing"
+                  ? "Authorizing..."
+                  : paymentState === "submitting"
+                  ? "Claiming..."
+                  : "Preparing..."
+                : hasInsufficientBalance
+                ? "Insufficient Balance"
+                : `Pay $${priceString}`}
+            </button>
+          </div>
+        )}
+
+        {/* x402 badge */}
+        <div className="mt-3 text-center">
+          <span className="inline-flex items-center gap-1 text-[var(--color-text-muted)] text-[10px]">
+            Powered by{" "}
+            <span className="font-mono text-[var(--color-accent-magenta)]">
+              x402
+            </span>{" "}
+            • HTTP 402 Payments
+          </span>
         </div>
       </div>
     </div>

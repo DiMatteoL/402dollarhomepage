@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 import { useSepoliaCanvas, type SepoliaCanvasPixel } from "~/lib/use-sepolia-canvas";
 import type { PendingPixel } from "~/lib/use-pending-pixels";
+import { CanvasControls } from "../../_components/canvas/canvas-controls";
+import { HoveredPixelInfo, LoadingOverlay, ZoomIndicator } from "../../_components/canvas/canvas-info";
 
 // Sepolia canvas is 100x100
 const CANVAS_SIZE = 100;
@@ -12,17 +14,17 @@ const CANVAS_SIZE = 100;
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 40;
 
-// Colors
+// Use same colors as mainnet for consistent visuals
 const COLORS = {
   outOfBounds: "#06060a",
   canvasBg: "#0d0d14",
   grid: "rgba(42, 42, 58, 0.3)",
-  border: "rgba(255, 165, 0, 0.3)", // Orange for testnet
-  hover: "#ffa500",
+  border: "rgba(0, 255, 255, 0.15)",
+  hover: "#00ffff",
 } as const;
 
 const PAN_THRESHOLD = 5;
-const PENDING_INDICATOR_COLOR = "#ffa500";
+const PENDING_INDICATOR_COLOR = "#00ffff";
 
 interface SepoliaCanvasProps {
   onPixelPaint: (pixel: {
@@ -39,27 +41,6 @@ interface SepoliaCanvasProps {
 const getDpr = () =>
   typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
-function LoadingOverlay() {
-  return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />
-        <span className="font-medium text-orange-400 text-sm">
-          Loading Sepolia Canvas...
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ZoomIndicator({ scale }: { scale: number }) {
-  return (
-    <div className="absolute top-4 left-4 z-10 rounded-lg border border-orange-500/30 bg-black/70 px-2 py-1 font-mono text-orange-400 text-xs backdrop-blur-sm">
-      {(scale * 100).toFixed(0)}%
-    </div>
-  );
-}
-
 function CanvasContent({
   onPixelPaint,
   hoveredPixel,
@@ -69,8 +50,6 @@ function CanvasContent({
   onHoverData,
   pixels,
   pendingPixels,
-  isLoading,
-  updatePixel,
 }: {
   onPixelPaint: SepoliaCanvasProps["onPixelPaint"];
   hoveredPixel: { x: number; y: number } | null;
@@ -82,13 +61,6 @@ function CanvasContent({
   ) => void;
   pixels: Map<string, SepoliaCanvasPixel>;
   pendingPixels: Map<string, PendingPixel>;
-  isLoading: boolean;
-  updatePixel: (
-    x: number,
-    y: number,
-    color: string,
-    updateCount: number
-  ) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dpr, setDpr] = useState(getDpr);
@@ -321,27 +293,24 @@ function CanvasContent({
   }, [setHoveredPixel, onHoverData]);
 
   return (
-    <>
-      {isLoading && <LoadingOverlay />}
-      <canvas
-        className="cursor-crosshair"
-        onMouseDown={handleMouseDown}
-        onMouseLeave={handleMouseLeave}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        ref={canvasRef}
-        style={{
-          width: CANVAS_SIZE,
-          height: CANVAS_SIZE,
-        }}
-      />
-    </>
+    <canvas
+      className="cursor-crosshair"
+      onMouseDown={handleMouseDown}
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      ref={canvasRef}
+      style={{
+        width: CANVAS_SIZE,
+        height: CANVAS_SIZE,
+      }}
+    />
   );
 }
 
 export function SepoliaCanvas({
   onPixelPaint,
-  hoverColor = "#ffa500",
+  hoverColor = "#00ffff",
   pendingPixels = new Map(),
   refreshTrigger,
 }: SepoliaCanvasProps) {
@@ -358,7 +327,7 @@ export function SepoliaCanvas({
   const [scale, setScale] = useState(1);
   const [initialScale, setInitialScale] = useState<number | null>(null);
 
-  const { pixels, isLoading, updatePixel } = useSepoliaCanvas({ refreshTrigger });
+  const { pixels, isLoading } = useSepoliaCanvas({ refreshTrigger });
 
   const [maxUpdateCount, setMaxUpdateCount] = useState<number | null>(null);
   useEffect(() => {
@@ -418,12 +387,11 @@ export function SepoliaCanvas({
       >
         {() => (
           <>
+            <CanvasControls />
             <ZoomIndicator scale={scale} />
 
             {hoveredPixel && (
-              <div className="absolute top-4 right-4 z-10 rounded-lg border border-orange-500/30 bg-black/70 px-3 py-2 font-mono text-orange-400 text-xs backdrop-blur-sm">
-                ({hoveredPixel.x}, {hoveredPixel.y})
-              </div>
+              <HoveredPixelInfo x={hoveredPixel.x} y={hoveredPixel.y} />
             )}
 
             <TransformComponent
@@ -445,17 +413,24 @@ export function SepoliaCanvas({
                 onHoverData={setHoverData}
                 pixels={pixels}
                 pendingPixels={pendingPixels}
-                isLoading={isLoading}
-                updatePixel={updatePixel}
               />
             </TransformComponent>
 
-            {/* Hover price tooltip */}
+            {/* Loading overlay - rendered at container level for proper sizing */}
+            {isLoading && <LoadingOverlay />}
+
+            {/* Hover price tooltip - same styling as mainnet */}
             {hoverData &&
               (() => {
                 const price = 0.01 * (hoverData.updateCount + 1);
                 const claimCount = hoverData.updateCount;
                 const maxClaims = 10;
+                const ratio = maxUpdateCount
+                  ? Math.min(claimCount / maxUpdateCount, 1)
+                  : 0;
+                const hue = 145 - ratio * 145;
+                const saturation = 70 + ratio * 5;
+                const lightness = 45 + ratio * 5;
                 const isMaxed = claimCount >= maxClaims;
 
                 return (
@@ -471,10 +446,15 @@ export function SepoliaCanvas({
                       style={{
                         background: isMaxed
                           ? "linear-gradient(135deg, #666 0%, #444 100%)"
-                          : "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+                          : `linear-gradient(135deg, hsl(${hue}, ${saturation}%, ${lightness}%) 0%, hsl(${Math.max(
+                              hue - 15,
+                              0
+                            )}, ${saturation + 5}%, ${lightness - 8}%) 100%)`,
                         boxShadow: isMaxed
                           ? "0 4px 15px -2px rgba(100,100,100,0.5)"
-                          : "0 4px 15px -2px rgba(249,115,22,0.5)",
+                          : `0 4px 15px -2px hsla(${hue}, ${saturation}%, ${lightness}%, 0.5), 0 0 0 1px hsla(${hue}, ${saturation}%, ${
+                              lightness + 20
+                            }%, 0.3) inset`,
                         textShadow: "0 1px 2px rgba(0,0,0,0.3)",
                       }}
                     >

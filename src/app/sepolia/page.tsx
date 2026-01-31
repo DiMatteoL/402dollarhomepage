@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_RECENT_COLORS } from "../_components/color-picker";
+import { DEFAULT_RECENT_COLORS, useRecentColors } from "../_components/color-picker";
+import { QuickColorPicker } from "../_components/quick-color-picker";
 import { usePendingPixels } from "~/lib/use-pending-pixels";
 import { SepoliaCanvas } from "./_components/sepolia-canvas";
 import { SepoliaClaimModal } from "./_components/sepolia-claim-modal";
 
 export default function SepoliaPage() {
-  // Shared color state
+  // Shared color state - initialized with first default color (red)
   const [selectedColor, setSelectedColor] = useState(
-    DEFAULT_RECENT_COLORS[0] ?? "#ff6600"
+    DEFAULT_RECENT_COLORS[0] ?? "#ff0000"
   );
 
   // Pending pixels state
@@ -26,12 +27,16 @@ export default function SepoliaPage() {
   // Modal state
   const [showClaimModal, setShowClaimModal] = useState(false);
 
-  // Canvas refresh trigger
+  // Canvas refresh trigger - increment to force refetch after successful transaction
   const [canvasRefreshTrigger, setCanvasRefreshTrigger] = useState(0);
+
+  // Recent colors
+  const { addRecentColor } = useRecentColors();
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z / Cmd+Z for undo
       if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         undoLast();
@@ -41,6 +46,9 @@ export default function SepoliaPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [undoLast]);
 
+  /**
+   * Handle pixel paint - just store locally, no payment yet
+   */
   const handlePixelPaint = useCallback(
     (pixel: {
       x: number;
@@ -59,20 +67,32 @@ export default function SepoliaPage() {
     [selectedColor, paintPixel]
   );
 
+  /**
+   * Handle claim button click - open the modal
+   */
   const handleClaimClick = useCallback(() => {
     setShowClaimModal(true);
   }, []);
 
+  /**
+   * Handle successful claim - clear pending pixels and add colors to recent
+   */
   const handleClaimSuccess = useCallback(() => {
-    clearAll();
-    setCanvasRefreshTrigger((prev) => prev + 1);
-  }, [clearAll]);
+    // Add all unique colors to recent colors
+    const uniqueColors = new Set<string>();
+    for (const pixel of pendingPixels.values()) {
+      uniqueColors.add(pixel.newColor);
+    }
+    for (const color of uniqueColors) {
+      addRecentColor(color);
+    }
 
-  // Simple color palette for testnet
-  const colors = [
-    "#ff6600", "#ff0000", "#00ff00", "#0000ff", "#ffff00",
-    "#ff00ff", "#00ffff", "#ffffff", "#000000", "#888888",
-  ];
+    // Clear all pending pixels
+    clearAll();
+
+    // Force canvas to refetch data
+    setCanvasRefreshTrigger((prev) => prev + 1);
+  }, [pendingPixels, addRecentColor, clearAll]);
 
   return (
     <>
@@ -84,7 +104,7 @@ export default function SepoliaPage() {
             <span className="font-medium text-orange-400 text-sm">
               Sepolia Testnet
             </span>
-            <span className="text-[var(--color-text-muted)] text-xs">
+            <span className="text-[var(--color-text-muted)] text-xs hidden sm:inline">
               100×100 canvas • Resets daily
             </span>
           </div>
@@ -97,8 +117,8 @@ export default function SepoliaPage() {
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="h-[calc(100vh-7.5rem)]">
+      {/* Full height canvas (accounting for nav + testnet banner) */}
+      <div className="h-[calc(100vh-6.5rem)]">
         <SepoliaCanvas
           onPixelPaint={handlePixelPaint}
           hoverColor={selectedColor}
@@ -107,71 +127,25 @@ export default function SepoliaPage() {
         />
       </div>
 
-      {/* Bottom Bar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-orange-500/30 bg-[var(--color-bg-primary)]/95 backdrop-blur-md px-4 py-3">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Color Picker */}
-          <div className="flex items-center gap-2">
-            {colors.map((color) => (
-              <button
-                key={color}
-                className={`h-8 w-8 rounded-lg border-2 transition-all ${
-                  selectedColor === color
-                    ? "border-orange-400 scale-110"
-                    : "border-transparent hover:border-[var(--color-border)]"
-                }`}
-                style={{ backgroundColor: color }}
-                onClick={() => setSelectedColor(color)}
-                type="button"
-              />
-            ))}
-          </div>
+      {/* Quick color picker with integrated pending pixels bar - same as mainnet */}
+      <QuickColorPicker
+        selectedColor={selectedColor}
+        onColorSelect={setSelectedColor}
+        pendingInfo={
+          pendingCount > 0
+            ? {
+                count: pendingCount,
+                totalPrice,
+                canUndo,
+                onClaim: handleClaimClick,
+                onUndoLast: undoLast,
+                onClearAll: clearAll,
+              }
+            : undefined
+        }
+      />
 
-          {/* Pending Info & Actions */}
-          {pendingCount > 0 ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-[var(--color-text-secondary)]">
-                {pendingCount} pixel{pendingCount !== 1 ? "s" : ""} •{" "}
-                <span className="text-orange-400 font-medium">
-                  ${totalPrice.toFixed(2)}
-                </span>
-              </span>
-
-              {canUndo && (
-                <button
-                  className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
-                  onClick={undoLast}
-                  type="button"
-                >
-                  Undo
-                </button>
-              )}
-
-              <button
-                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
-                onClick={clearAll}
-                type="button"
-              >
-                Clear
-              </button>
-
-              <button
-                className="rounded-lg bg-orange-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-orange-600 transition-colors"
-                onClick={handleClaimClick}
-                type="button"
-              >
-                Claim
-              </button>
-            </div>
-          ) : (
-            <span className="text-xs text-[var(--color-text-muted)]">
-              Click pixels to paint • Uses testnet USDC
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Claim Modal */}
+      {/* Claim modal */}
       {showClaimModal && (
         <SepoliaClaimModal
           pendingPixels={pendingPixels}
