@@ -11,6 +11,7 @@ X402 Dollar Homepage is a 1000x1000 pixel canvas where anyone can buy and paint 
 - Payment: **USDC on Base** network via x402 protocol
 - Pricing: $0.01 per pixel initially, +$0.01 for each repaint (max 10 repaints = $0.10 max)
 - Each pixel can be claimed up to 10 times total
+- **Bulk painting:** Paint up to 100 pixels in a single transaction!
 
 ## Prerequisites
 
@@ -65,7 +66,7 @@ const fetchWithPayment = wrapFetch(fetch, walletClient, {
   facilitator: facilitator,
 });
 
-// Paint a pixel
+// Paint a single pixel
 async function paintPixel(x: number, y: number, color: string) {
   const baseUrl = USE_TESTNET
     ? "https://x402dollarhomepage.com/api/sepolia"
@@ -80,9 +81,33 @@ async function paintPixel(x: number, y: number, color: string) {
   return response.json();
 }
 
-// Usage
+// Paint multiple pixels in one transaction (up to 100!)
+async function paintBatch(pixels: Array<{x: number, y: number, color: string}>) {
+  const baseUrl = USE_TESTNET
+    ? "https://x402dollarhomepage.com/api/sepolia"
+    : "https://x402dollarhomepage.com/api";
+
+  const response = await fetchWithPayment(`${baseUrl}/pixel/paint-batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pixels }),
+  });
+
+  return response.json();
+}
+
+// Usage - single pixel
 const result = await paintPixel(50, 50, "#ff0000");
 console.log("Pixel painted:", result);
+
+// Usage - bulk paint (much more efficient!)
+const batchResult = await paintBatch([
+  { x: 10, y: 10, color: "#ff0000" },
+  { x: 11, y: 10, color: "#00ff00" },
+  { x: 12, y: 10, color: "#0000ff" },
+  // ... up to 100 pixels
+]);
+console.log("Batch painted:", batchResult);
 ```
 
 ### Using @coinbase/x402 Client Directly
@@ -334,9 +359,11 @@ Then visit https://x402dollarhomepage.com/sepolia to paint on the testnet canvas
 
 ## Rate Limits & Constraints
 
-- Max pixels per batch: 100
+- **Max pixels per batch: 100** - Use `/api/pixel/paint-batch` to paint many pixels in one transaction
 - Max claims per pixel: 10
 - Payment timeout: 300 seconds (5 minutes)
+
+**Pro tip:** Batch painting is much more efficient! Instead of 100 separate transactions, paint 100 pixels with a single payment.
 
 ## Example: Check Pixel Price
 
