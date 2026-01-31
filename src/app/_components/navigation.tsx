@@ -170,6 +170,27 @@ export function Navigation() {
           {/* Divider */}
           <div className="my-4 border-[var(--color-border)] border-t" />
 
+          {/* Testnet */}
+          <div className="space-y-1">
+            <p className="mb-2 px-4 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">
+              Testnet
+            </p>
+            <Link
+              href="/sepolia"
+              onClick={closeDrawer}
+              className="flex items-center gap-3 rounded-lg px-4 py-3 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+            >
+              <span className="text-lg">🧪</span>
+              <div>
+                <span className="block">Sepolia Canvas</span>
+                <span className="text-[10px] text-orange-400">100×100 • Resets daily</span>
+              </div>
+            </Link>
+          </div>
+
+          {/* Divider */}
+          <div className="my-4 border-[var(--color-border)] border-t" />
+
           {/* Legal Links */}
           <div className="space-y-1">
             <p className="mb-2 px-4 font-medium text-[var(--color-text-muted)] text-xs uppercase tracking-wider">

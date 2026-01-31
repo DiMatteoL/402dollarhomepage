@@ -68,8 +68,66 @@ export const payments = createTable(
 	],
 );
 
+/**
+ * Sepolia Testnet Tables
+ * 100x100 pixel canvas that resets daily
+ * Uses Base Sepolia network for testing
+ */
+
+/**
+ * Sepolia Pixels table - testnet version (100x100 canvas)
+ */
+export const sepoliaPixels = createTable(
+	"sepolia_pixels",
+	(_d) => ({
+		x: integer().notNull(),
+		y: integer().notNull(),
+		color: varchar({ length: 7 }).notNull().default("#000000"),
+		owner: varchar({ length: 256 }).notNull(),
+		timestamp: timestamp({ withTimezone: true })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		price: real().notNull().default(0.01),
+		updateCount: integer().notNull().default(1),
+	}),
+	(t) => [
+		primaryKey({ columns: [t.x, t.y] }),
+		index("sepolia_pixel_owner_idx").on(t.owner),
+		index("sepolia_pixel_timestamp_idx").on(t.timestamp),
+	],
+);
+
+/**
+ * Sepolia Payments table - testnet payment tracking
+ */
+export const sepoliaPayments = createTable(
+	"sepolia_payments",
+	(_d) => ({
+		id: integer().primaryKey().generatedByDefaultAsIdentity(),
+		pixelX: integer().notNull(),
+		pixelY: integer().notNull(),
+		owner: varchar({ length: 256 }).notNull(),
+		amount: real().notNull(),
+		nonce: varchar({ length: 256 }).notNull().unique(),
+		paymentHash: varchar({ length: 256 }),
+		createdAt: timestamp({ withTimezone: true })
+			.$defaultFn(() => new Date())
+			.notNull(),
+	}),
+	(t) => [
+		index("sepolia_payment_owner_idx").on(t.owner),
+		index("sepolia_payment_nonce_idx").on(t.nonce),
+	],
+);
+
 // Type exports for use in application
 export type Pixel = typeof pixels.$inferSelect;
 export type NewPixel = typeof pixels.$inferInsert;
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+
+// Sepolia type exports
+export type SepoliaPixel = typeof sepoliaPixels.$inferSelect;
+export type NewSepoliaPixel = typeof sepoliaPixels.$inferInsert;
+export type SepoliaPayment = typeof sepoliaPayments.$inferSelect;
+export type NewSepoliaPayment = typeof sepoliaPayments.$inferInsert;

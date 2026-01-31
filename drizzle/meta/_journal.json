@@ -1,13 +1,20 @@
 {
-	"version": "7",
-	"dialect": "postgresql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1765016683000,
-			"tag": "0000_spotty_roland_deschain",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1765016683000,
+      "tag": "0000_spotty_roland_deschain",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1769859866664,
+      "tag": "0001_naive_gargoyle",
+      "breakpoints": true
+    }
+  ]
 }

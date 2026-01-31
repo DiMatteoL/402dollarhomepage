@@ -11,9 +11,13 @@ export const env = createEnv({
 			.enum(["development", "test", "production"])
 			.default("development"),
 		SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-		// x402 server configuration
+		// x402 server configuration (mainnet)
 		X402_PAY_TO_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
 		X402_FACILITATOR_URL: z.string().url().optional(),
+		// x402 sepolia testnet configuration
+		SEPOLIA_X402_PAY_TO_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+		// Cron secret for scheduled tasks
+		CRON_SECRET: z.string().optional(),
 		// Sentry configuration
 		SENTRY_DSN: z.string().url().optional(),
 	},
@@ -48,9 +52,13 @@ export const env = createEnv({
 		NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
 		NEXT_PUBLIC_PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID,
 		NEXT_PUBLIC_X402_NETWORK: process.env.NEXT_PUBLIC_X402_NETWORK,
-		// x402 server configuration
+		// x402 server configuration (mainnet)
 		X402_PAY_TO_ADDRESS: process.env.X402_PAY_TO_ADDRESS,
 		X402_FACILITATOR_URL: process.env.X402_FACILITATOR_URL,
+		// x402 sepolia testnet configuration
+		SEPOLIA_X402_PAY_TO_ADDRESS: process.env.SEPOLIA_X402_PAY_TO_ADDRESS,
+		// Cron secret for scheduled tasks
+		CRON_SECRET: process.env.CRON_SECRET,
 		// Sentry configuration
 		SENTRY_DSN: process.env.SENTRY_DSN,
 		NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
