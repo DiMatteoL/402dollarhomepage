@@ -297,7 +297,7 @@ The X-PAYMENT header must be a base64-encoded JSON with this structure:
   "payload": {
     "authorization": {
       "from": "0xYourWallet",
-      "to": "0x0c1bca2283b125f78c1ade27dd260184e9ec2faf",
+      "to": "0x571bB7a447021D7417211BC5a39Ff53e715aF89b",
       "value": "10000",
       "validAfter": "1234567890",
       "validBefore": "1234568190",

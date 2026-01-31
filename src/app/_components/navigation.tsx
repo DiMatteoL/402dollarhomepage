@@ -349,7 +349,7 @@ export function Navigation() {
                 </span>
                 <br />
                 <a
-                  href="https://basescan.org/address/0x0c1bca2283b125f78c1ade27dd260184e9ec2faf#tokentxns"
+                  href="https://basescan.org/address/0x571bB7a447021D7417211BC5a39Ff53e715aF89b#tokentxns"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="font-mono text-[var(--color-accent-cyan)] hover:underline break-all"

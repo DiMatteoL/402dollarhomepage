@@ -118,13 +118,13 @@ export default function TermsOfServicePage() {
                 <p>All payments are sent to our verified wallet address:</p>
                 <p className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-tertiary)] px-3 py-2">
                   <code className="font-mono text-[var(--color-accent-cyan)] text-sm break-all">
-                    0x0c1bca2283b125f78c1ade27dd260184e9ec2faf
+                    0x571bB7a447021D7417211BC5a39Ff53e715aF89b
                   </code>
                 </p>
                 <p className="mt-2 text-sm">
                   Verify on{" "}
                   <a
-                    href="https://basescan.org/address/0x0c1bca2283b125f78c1ade27dd260184e9ec2faf"
+                    href="https://basescan.org/address/0x571bB7a447021D7417211BC5a39Ff53e715aF89b"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[var(--color-accent-cyan)] hover:underline"
